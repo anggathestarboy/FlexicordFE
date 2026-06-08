@@ -2,9 +2,9 @@ import { Question, User } from './types';
 
 export const CURRENT_USER: User = {
   id: 'user-0',
-  username: 'andev99',
-  displayName: 'Anggara Dev',
-  avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+  username: 'andev9',
+  displayName: 'Anggaraa',
+  avatarUrl: 'narutoaksata.jpg',
   reputation: 1450,
   bio: 'Fullstack Web Developer yang gemar mecahkan masalah React, Next.js, dan Tailwind CSS. Sedang belajar Rust dan AI Engineering.',
   joinedDate: 'Joined 3 years ago',

@@ -49,14 +49,14 @@ export default function Navbar({
         {/* Brand Logo */}
         <Link 
           href="/"
-          className="flex items-center gap-2 cursor-pointer group active:scale-95 transition-transform shrink-0"
+          className="flex items-center  cursor-pointer group active:scale-95 transition-transform shrink-0"
         >
           <div className="p-1 px-1.5 rounded-lg group-hover:scale-105 transition-transform">
-            <FlexicordLogo size={42} className="transform -rotate-6 transition-transform group-hover:rotate-0" />
+            <FlexicordLogo size={32} className="transform -rotate-6 transition-transform group-hover:rotate-0" />
           </div>
-          <span className="text-xl font-bold font-sans tracking-tight text-zinc-900 dark:text-white flex items-center gap-1">
+          <span className="text-xl font-bold font-sans tracking-tight text-gray-800 dark:text-white flex items-center ">
             Flexi<span className="text-brand-blue">cord</span>
-            <span className="text-[10px] bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue px-1.5 py-0.5 rounded font-mono font-medium tracking-normal">v1.2</span>
+
           </span>
         </Link>
 
@@ -78,26 +78,7 @@ export default function Navbar({
         {/* Mobile Navigation / Trigger Actions */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Ask Question Button */}
-          {pathname !== '/ask' ? (
-            <Link
-              href="/ask"
-              id="btn-ask-question-nav"
-              className="flex items-center gap-1.5 bg-brand-blue hover:bg-brand-blue-hover text-white text-xs sm:text-sm font-medium px-3.5 py-2.0 rounded-lg shadow-sm hover:shadow active:scale-98 transition-all duration-150 cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Tanya Pertanyaan</span>
-              <span className="sm:hidden">Tanya</span>
-            </Link>
-          ) : (
-            <Link
-              href="/"
-              id="btn-back-home-nav"
-              className="flex items-center gap-1 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 text-xs sm:text-sm font-medium px-3.5 py-2.0 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 active:scale-98 transition-all duration-150 cursor-pointer"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Kembali</span>
-            </Link>
-          )}
+        
 
           {/* Theme Switcher Toggle */}
           <ThemeToggle />
@@ -129,15 +110,8 @@ export default function Navbar({
             </div>
           </Link>
 
-          {/* Logout Button */}
-          <button
-            id="nav-logout-trigger"
-            onClick={handleLogout}
-            className="p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-500 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-zinc-800/50 transition-all cursor-pointer shadow-sm active:scale-95"
-            title="Keluar dari Akun"
-          >
-            <LogOut className="h-[18px] w-[18px]" />
-          </button>
+       
+        
         </div>
       </div>
 

@@ -47,7 +47,7 @@ export default function ProfilePage() {
       <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
         <div className="h-32 bg-gradient-to-r from-brand-blue to-sky-600 relative" />
 
-        <div className="p-6 relative pt-0">
+        <div className="p-6 relative pt-0 mt-7">
           <div className="-mt-16 mb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
               <img
