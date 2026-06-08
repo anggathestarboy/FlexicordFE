@@ -1,6 +1,0 @@
-{
-  "name": "Flexicord",
-  "description": "Sebuah aplikasi web klon Stack Overflow untuk para pengembang, lengkap dengan pencarian, filter, pembuatan pertanyaan, detail diskusi, profil pengguna, dan mode gelap/terang.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
