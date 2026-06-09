@@ -50,4 +50,8 @@ export interface Question {
   voted?: 'up' | 'down' | null;
 }
 
+
+
+
+
 export type ViewType = 'home' | 'question-detail' | 'ask-question' | 'profile' | 'login' | 'register';
