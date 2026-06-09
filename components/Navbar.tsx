@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { MessageSquare, Search, Award, Plus, ArrowLeft, LogOut } from 'lucide-react';
 import { User, ViewType } from '@/lib/types';
