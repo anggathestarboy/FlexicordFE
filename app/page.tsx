@@ -9,20 +9,12 @@ import {
   ArrowBigUp,
   CheckCircle,
 } from "lucide-react";
+import { Posts } from "@/lib/types";
 
-type Post = {
-  id: string;
-  title: string;
-  body: string;
-  status: string;
-  view_count: number;
-  vote_score: number;
-  is_answered: number;
-  created_at: string;
-};
+
 
 export default function HomePage() {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<Posts[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 

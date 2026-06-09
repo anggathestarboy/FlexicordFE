@@ -16,6 +16,9 @@ export interface User {
   };
 }
 
+
+
+
 export interface Comment {
   id: string;
   author: User;
@@ -72,18 +75,14 @@ export interface PostsResponse {
 }
 
 export interface Posts {
-  id: string
-  user_id: string
-  category_id: string
-  title: string
-  body: string
-  status: string
-  view_count: number
-  vote_score: number
-  is_answered: number
-  accepted_answer_id: string
-  created_at: string
-  updated_at: string
+    id: string;
+  title: string;
+  body: string;
+  status: string;
+  view_count: number;
+  vote_score: number;
+  is_answered: number;
+  created_at: string;
 }
 
 export interface Link {
