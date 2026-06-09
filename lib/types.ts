@@ -1,20 +1,44 @@
+export interface Role {
+  id: string;
+  name: string;
+  permissions: string | null;
+  created_at: string;
+  pivot?: {
+    user_id: string;
+    role_id: string;
+  };
+  parsedPermissions?: any;
+}
+
 export interface User {
   id: string;
   username: string;
-  displayName: string;
-  avatarUrl: string;
-  reputation: number;
-  bio?: string;
-  joinedDate: string;
+  email?: string;
+  avatar_url?: string | null;
+  bio?: string | null;
+  reputation_points?: number;
+  level?: number;
+  is_banned?: number;
+  created_at?: string;
+  updated_at?: string;
+  roles?: Role[];
+  primary_role?: Role;
+
+  // Compatibility fields
+  displayName?: string;
+  avatarUrl?: string;
+  reputation?: number;
+  joinedDate?: string;
   location?: string;
   websiteUrl?: string;
   githubUrl?: string;
-  badges: {
+  badges?: {
     gold: number;
     silver: number;
     bronze: number;
   };
 }
+
 
 
 
@@ -53,37 +77,34 @@ export interface Question {
   voted?: 'up' | 'down' | null;
 }
 
-// type posts GET
-export interface PostsType {
-  current_page: number
-  data: Posts[]
-  first_page_url: string
-  from: number
-  last_page_url: string
-  last_page: number
-  links: Link[]
-  next_page_url: string
-  path: string
-  per_page: number
-  prev_page_url: string
-  to: number
-  total: number
-}
-
-export interface PostsResponse {
-  data: Posts[]
-}
-
-export interface Posts {
-    id: string;
+export interface Post {
+     id: string;
   title: string;
   body: string;
   status: string;
   view_count: number;
   vote_score: number;
   is_answered: number;
+  comments_count: number;
   created_at: string;
+  is_edited: boolean;
+  tags: Tag[];
+  category: Category;
+  user: User;
 }
+
+export interface Tag {
+  id: string;
+  name: string;
+  slug: string;
+  color: string;
+};
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+};
 
 export interface Link {
   url: string
@@ -91,6 +112,24 @@ export interface Link {
   active: boolean
 }
 
+export interface PostsResponse {
+  data: Post[]
+}
+
+export interface ApiResponse {
+  data: Post[];
+  current_page: number;
+  last_page: number;
+  total: number;
+  links: PaginationLink[];
+};
+
+export interface PaginationLink {
+  url: string | null;
+  label: string;
+  page: number | null;
+  active: boolean;
+};
 
 
 

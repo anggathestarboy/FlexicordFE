@@ -113,7 +113,7 @@ export default function RightSidebar({
                   }`}
                 >
                   <span>#{tag.name}</span>
-                  <span className={`text-[10px] pl-1 font-sans ${isActive ? 'text-blue-100' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                  <span suppressHydrationWarning={true} className={`text-[10px] pl-1 font-sans ${isActive ? 'text-blue-100' : 'text-zinc-400 dark:text-zinc-500'}`}>
                     ({tag.count.toLocaleString()})
                   </span>
                 </button>

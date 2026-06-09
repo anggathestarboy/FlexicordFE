@@ -81,20 +81,21 @@ export default function RegisterPage() {
         return;
       }
 
-      // Sukses — set user di context lalu redirect
-      const registeredUser: User = {
-        id: `u-${Date.now()}`,
-        username: username.toLowerCase().trim(),
-        displayName: username.trim(),
-        avatarUrl: `https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80`,
-        reputation: 1,
-        joinedDate: 'Juni 2026',
-        bio: 'Pengembang baru yang baru saja bergabung di Flexicord.',
-        badges: { gold: 0, silver: 0, bronze: 0 },
-      };
-
-      setCurrentUser(registeredUser);
-      showNotification(`Akun berhasil dibuat! Selamat bergabung, ${registeredUser.displayName}! 🎉`);
+      // Fetch /api/me to retrieve the actual user data registered on the backend
+      const meRes = await fetch('/api/me');
+      if (meRes.ok) {
+        const meData = await meRes.json();
+        if (meData.user) {
+          setCurrentUser(meData.user);
+          showNotification(`Akun berhasil dibuat! Selamat bergabung, ${meData.user.username}! 🎉`);
+        } else {
+          setCurrentUser(null);
+          showNotification(`Akun berhasil dibuat! Silakan masuk ke akun Anda. 🎉`);
+        }
+      } else {
+        setCurrentUser(null);
+        showNotification(`Akun berhasil dibuat! Silakan masuk ke akun Anda. 🎉`);
+      }
       router.push('/');
     } catch (err) {
       setError('Tidak dapat terhubung ke server. Coba lagi.');

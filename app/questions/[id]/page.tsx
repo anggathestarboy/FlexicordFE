@@ -170,17 +170,23 @@ export default function QuestionDetailPage({ params }: { params: Promise<{ id: s
               </span>
               <div className="flex items-center gap-2">
                 <img
-                  src={question.author.avatarUrl}
-                  alt={question.author.displayName}
+                  src={
+                    question.author.avatar_url
+                      ? question.author.avatar_url.startsWith('http')
+                        ? question.author.avatar_url
+                        : `https://pegaduanmasyarakat.alwaysdata.net/storage/${question.author.avatar_url}`
+                      : question.author.avatarUrl || 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80'
+                  }
+                  alt={question.author.username || question.author.displayName}
                   className="h-8 w-8 rounded-full object-cover"
                 />
                 <div className="text-left">
                   <span className="block text-xs font-bold text-zinc-700 dark:text-zinc-200">
-                    {question.author.displayName}
+                    {question.author.username || question.author.displayName}
                   </span>
                   <div className="flex items-center gap-1 text-[11px] text-zinc-500 font-mono">
                     <Award className="h-3 w-3 text-brand-blue" />
-                    <span>{question.author.reputation.toLocaleString()} rep</span>
+                    <span>{(question.author.reputation_points ?? question.author.reputation ?? 0).toLocaleString()} rep</span>
                   </div>
                 </div>
               </div>
@@ -198,7 +204,7 @@ export default function QuestionDetailPage({ params }: { params: Promise<{ id: s
                 {question.comments.map((comm) => (
                   <div key={comm.id} className="text-xs text-zinc-650 dark:text-zinc-350 pt-2 first:pt-0 leading-relaxed font-sans">
                     <span className="font-semibold text-zinc-800 dark:text-zinc-200 mr-1">
-                      {comm.author.displayName}:
+                      {comm.author.username || comm.author.displayName}:
                     </span>
                     {comm.body}
                     <span className="text-[10px] text-zinc-400 dark:text-zinc-500 ml-2 font-mono">
@@ -297,7 +303,7 @@ export default function QuestionDetailPage({ params }: { params: Promise<{ id: s
                         <CheckCircle2 className="h-6 w-6 fill-emerald-500/10" />
                       </div>
                     ) : (
-                      currentUser.id === question.author.id && (
+                      currentUser?.id === question.author.id && (
                         <button
                           onClick={() => handleAcceptAnswer(question.id, ans.id)}
                           className="mt-2 text-zinc-300 hover:text-emerald-500 transition-colors cursor-pointer"
@@ -329,16 +335,22 @@ export default function QuestionDetailPage({ params }: { params: Promise<{ id: s
                         </span>
                         <div className="flex items-center gap-2">
                           <img
-                            src={ans.author.avatarUrl}
-                            alt={ans.author.displayName}
+                            src={
+                              ans.author.avatar_url
+                                ? ans.author.avatar_url.startsWith('http')
+                                  ? ans.author.avatar_url
+                                  : `https://pegaduanmasyarakat.alwaysdata.net/storage/${ans.author.avatar_url}`
+                                : ans.author.avatarUrl || 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80'
+                            }
+                            alt={ans.author.username || ans.author.displayName}
                             className="h-6 w-6 rounded-full object-cover"
                           />
                           <div className="text-left">
                             <span className="block text-xs font-bold text-zinc-700 dark:text-zinc-200">
-                              {ans.author.displayName}
+                              {ans.author.username || ans.author.displayName}
                             </span>
                             <span className="text-[9px] text-zinc-400 font-mono">
-                              Rep: {ans.author.reputation.toLocaleString()} • {ans.createdAt}
+                              Rep: {(ans.author.reputation_points ?? ans.author.reputation ?? 0).toLocaleString()} • {ans.createdAt}
                             </span>
                           </div>
                         </div>
@@ -351,7 +363,7 @@ export default function QuestionDetailPage({ params }: { params: Promise<{ id: s
                           {ans.comments.map((ac) => (
                             <div key={ac.id} className="text-xs text-zinc-650 dark:text-zinc-350 pt-1.5 first:pt-0">
                               <span className="font-semibold text-zinc-800 dark:text-zinc-200 mr-1">
-                                {ac.author.displayName}:
+                                {ac.author.username || ac.author.displayName}:
                               </span>
                               {ac.body}
                               <span className="text-[9px] text-zinc-400 ml-2 font-mono">— {ac.createdAt}</span>

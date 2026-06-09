@@ -73,19 +73,9 @@ export default function LoginPage() {
       // Login berhasil
       // Data user dari response API (asumsikan struktur seperti ini)
       // Sesuaikan dengan response actual dari backend Anda
-      const loggedInUser: User = {
-        id: data.user?.id || `u-${Date.now()}`,
-        username: username,
-        displayName: data.user?.displayName || username,
-        avatarUrl: data.user?.avatarUrl,
-        reputation: data.user?.reputation || 1540,
-        joinedDate: data.user?.joinedDate || 'Juni 2026',
-        bio: data.user?.bio || 'Seorang penjelajah baris kode yang baru saja bergabung kembali di gerbang Flexicord.',
-        badges: data.user?.badges || { gold: 1, silver: 4, bronze: 12 },
-      };
-
+      const loggedInUser = data.user;
       setCurrentUser(loggedInUser);
-      showNotification(`Selamat datang kembali, ${loggedInUser.displayName}! 👋`);
+      showNotification(`Selamat datang kembali, ${loggedInUser.username}! 👋`);
       
       // Redirect ke halaman utama
       router.push('/');

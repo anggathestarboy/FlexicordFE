@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Award, Calendar, Link as LinkIcon, MapPin, Github, FileText, Heart, ShieldAlert, Star, MessageSquare } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useRouter } from 'next/navigation';
@@ -9,12 +9,39 @@ export default function ProfilePage() {
   const { currentUser, questions, handleUpdateProfile, setQuestions } = useApp();
   const router = useRouter();
 
+  // Redirect to login if user is not authenticated
+  useEffect(() => {
+    if (currentUser === null) {
+      router.push('/login');
+    }
+  }, [currentUser, router]);
+
   const [isEditing, setIsEditing] = useState(false);
-  const [displayName, setDisplayName] = useState(currentUser.displayName);
-  const [bio, setBio] = useState(currentUser.bio || '');
-  const [location, setLocation] = useState(currentUser.location || '');
-  const [websiteUrl, setWebsiteUrl] = useState(currentUser.websiteUrl || '');
-  const [githubUrl, setGithubUrl] = useState(currentUser.githubUrl || '');
+  const [displayName, setDisplayName] = useState('');
+  const [bio, setBio] = useState('');
+  const [location, setLocation] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [githubUrl, setGithubUrl] = useState('');
+
+  // Populate form states once user is loaded
+  useEffect(() => {
+    if (currentUser) {
+      setDisplayName(currentUser.username || '');
+      setBio(currentUser.bio || '');
+      setLocation(currentUser.location || '');
+      setWebsiteUrl(currentUser.websiteUrl || '');
+      setGithubUrl(currentUser.githubUrl || '');
+    }
+  }, [currentUser]);
+
+  if (!currentUser) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Memuat sesi Anda...</p>
+      </div>
+    );
+  }
 
   const userQuestions = questions.filter((q) => q.author.id === currentUser.id);
 
@@ -26,7 +53,7 @@ export default function ProfilePage() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     handleUpdateProfile({
-      displayName,
+      username: displayName, // Update username as new display field
       bio,
       location,
       websiteUrl,
@@ -42,6 +69,17 @@ export default function ProfilePage() {
     router.push(`/questions/${id}`);
   };
 
+  const badges = currentUser.badges || {
+    gold: Math.floor((currentUser.level || 0) / 3),
+    silver: Math.floor((currentUser.level || 0) / 2),
+    bronze: currentUser.level || 0
+  };
+
+  const reputation = currentUser.reputation_points ?? currentUser.reputation ?? 0;
+  const joinedDate = currentUser.created_at
+    ? new Date(currentUser.created_at).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+    : currentUser.joinedDate || 'Juni 2026';
+
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
@@ -50,17 +88,27 @@ export default function ProfilePage() {
         <div className="p-6 relative pt-0 mt-7">
           <div className="-mt-16 mb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-              <img
-                src={currentUser.avatarUrl}
-                alt={currentUser.displayName}
-                referrerPolicy="no-referrer"
-                className="h-28 w-28 rounded-2xl object-cover border-4 border-white dark:border-zinc-950 shadow-md bg-zinc-100"
-              />
-              <div className="space-y-1 mb-1">
+              {currentUser.avatar_url ? (
+                <img
+                  src={
+                    currentUser.avatar_url.startsWith('http')
+                      ? currentUser.avatar_url
+                      : `https://pegaduanmasyarakat.alwaysdata.net/storage/${currentUser.avatar_url}`
+                  }
+                  alt={currentUser.username}
+                  referrerPolicy="no-referrer"
+                  className="h-28 w-28 rounded-2xl object-cover border-4 border-white dark:border-zinc-950 shadow-md bg-zinc-100 shrink-0"
+                />
+              ) : (
+                <div className="h-28 w-28 rounded-2xl bg-brand-blue text-white flex items-center justify-center font-bold text-3xl shadow-inner uppercase border-4 border-white dark:border-zinc-950 shrink-0 select-none">
+                  {currentUser.username ? currentUser.username.charAt(0) : '?'}
+                </div>
+              )}
+              <div className="space-y-1 mb-1 text-left">
                 <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                  <span>{currentUser.displayName}</span>
+                  <span>{currentUser.username}</span>
                   <span className="text-xs bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue px-2 py-0.5 rounded-full font-sans font-bold uppercase tracking-wider">
-                    Developer elite
+                    {currentUser.primary_role?.name || 'Developer'}
                   </span>
                 </h1>
                 <p className="text-xs sm:text-sm text-zinc-500 font-mono">@{currentUser.username}</p>
@@ -79,10 +127,10 @@ export default function ProfilePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-zinc-100 dark:border-zinc-900/60">
-            <div className="space-y-3.5 text-xs sm:text-sm text-zinc-650 dark:text-zinc-400">
+            <div className="space-y-3.5 text-xs sm:text-sm text-zinc-650 dark:text-zinc-400 text-left">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-zinc-450 shrink-0" />
-                <span>Terdaftar: <strong className="text-zinc-800 dark:text-zinc-200 font-normal">{currentUser.joinedDate}</strong></span>
+                <span>Terdaftar: <strong className="text-zinc-800 dark:text-zinc-200 font-normal">{joinedDate}</strong></span>
               </div>
               {currentUser.location && (
                 <div className="flex items-center gap-2">
@@ -119,7 +167,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="md:col-span-2 text-left">
-              <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5">
+              <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-505 uppercase tracking-widest mb-1.5">
                 Rangkuman Bio Profesional
               </h3>
               <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed italic">
@@ -138,7 +186,7 @@ export default function ProfilePage() {
           <form onSubmit={handleSave} className="space-y-4 text-left">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">Nama Tampilan</label>
+                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">Nama Pengguna</label>
                 <input
                   type="text"
                   value={displayName}
@@ -216,7 +264,7 @@ export default function ProfilePage() {
         <div className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xs text-center">
           <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">Reputasi</div>
           <div className="mt-1 text-2xl font-black text-brand-blue font-mono">
-            {currentUser.reputation.toLocaleString()}
+            {reputation.toLocaleString()}
           </div>
           <div className="text-[10px] text-zinc-400 mt-1">92th percentile</div>
         </div>
@@ -227,7 +275,7 @@ export default function ProfilePage() {
             <span>Medali Emas</span>
           </div>
           <div className="mt-1.5 text-2xl font-black text-zinc-800 dark:text-zinc-100 font-mono">
-            {currentUser.badges.gold}
+            {badges.gold}
           </div>
           <div className="text-[9px] font-medium text-zinc-400 mt-1 uppercase tracking-wide">Solusi Top Kategori</div>
         </div>
@@ -238,7 +286,7 @@ export default function ProfilePage() {
             <span>Medali Perak</span>
           </div>
           <div className="mt-1.5 text-2xl font-black text-zinc-800 dark:text-zinc-100 font-mono">
-            {currentUser.badges.silver}
+            {badges.silver}
           </div>
           <div className="text-[9px] font-medium text-zinc-400 mt-1 uppercase tracking-wide">Jawaban Mendukung</div>
         </div>
@@ -249,7 +297,7 @@ export default function ProfilePage() {
             <span>Medali Perunggu</span>
           </div>
           <div className="mt-1.5 text-2xl font-black text-zinc-800 dark:text-zinc-100 font-mono">
-            {currentUser.badges.bronze}
+            {badges.bronze}
           </div>
           <div className="text-[9px] font-medium text-zinc-400 mt-1 uppercase tracking-wide">Keaktifan Komunitas</div>
         </div>
@@ -303,22 +351,22 @@ export default function ProfilePage() {
 
           <div className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-850 space-y-3">
             <div className="space-y-2 text-xs">
-              <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
+              <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400 text-left">
                 <span>Jawaban Diberikan:</span>
                 <span className="font-bold text-zinc-850 dark:text-white font-mono">{userAnswersCount} kali</span>
               </div>
-              <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
+              <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400 text-left">
                 <span>Pertanyaan Diterbitkan:</span>
                 <span className="font-bold text-zinc-850 dark:text-white font-mono">{userQuestions.length} kali</span>
               </div>
-              <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
+              <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400 text-left">
                 <span>Persentase Diterima (*Accepted*):</span>
                 <span className="font-bold text-zinc-850 dark:text-white font-mono">100%</span>
               </div>
             </div>
 
-            <div className="pt-2 border-t border-zinc-100 dark:border-zinc-900/60">
-              <span className="block text-[10px] uppercase font-bold text-zinc-455 mb-2 dark:text-zinc-505">Tag Terlaris di Profil Anda:</span>
+            <div className="pt-2 border-t border-zinc-100 dark:border-zinc-900/60 text-left">
+              <span className="block text-[10px] uppercase font-bold text-zinc-455 mb-2 dark:text-zinc-550">Tag Terlaris di Profil Anda:</span>
               <div className="flex flex-wrap gap-1.5">
                 <span className="text-[10px] px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 rounded font-mono font-semibold">react (3 posts)</span>
                 <span className="text-[10px] px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 rounded font-mono font-semibold">tailwindcss (2 posts)</span>
@@ -331,3 +379,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

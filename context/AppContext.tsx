@@ -2,13 +2,13 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Question, User, Answer, Comment, ViewType } from '@/lib/types';
-import { MOCK_QUESTIONS, CURRENT_USER } from '@/lib/data';
+import { MOCK_QUESTIONS } from '@/lib/data';
 
 interface AppContextType {
   questions: Question[];
-  currentUser: User;
+  currentUser: User | null;
   setQuestions: React.Dispatch<React.SetStateAction<Question[]>>;
-  setCurrentUser: React.Dispatch<React.SetStateAction<User>>;
+  setCurrentUser: React.Dispatch<React.SetStateAction<User | null>>;
   handleQuestionVote: (id: string, dir: 'up' | 'down') => void;
   handleAnswerVote: (questionId: string, answerId: string, dir: 'up' | 'down') => void;
   handleAddAnswer: (questionId: string, body: string) => void;
@@ -46,7 +46,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return MOCK_QUESTIONS;
   });
 
-  const [currentUser, setCurrentUser] = useState<User>(() => {
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('devoverflow-user');
       if (saved) {
@@ -57,15 +57,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
     }
-    return CURRENT_USER;
+    return null;
   });
+
+  const checkUserAuth = async () => {
+    try {
+      const res = await fetch('/api/me');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          setCurrentUser(data.user);
+        } else {
+          setCurrentUser(null);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+    } catch (e) {
+      console.error('Failed to check auth', e);
+      setCurrentUser(null);
+    }
+  };
+
+  useEffect(() => {
+    checkUserAuth();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('devoverflow-questions', JSON.stringify(questions));
   }, [questions]);
 
   useEffect(() => {
-    localStorage.setItem('devoverflow-user', JSON.stringify(currentUser));
+    if (currentUser) {
+      localStorage.setItem('devoverflow-user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('devoverflow-user');
+    }
   }, [currentUser]);
 
   useEffect(() => {
@@ -104,8 +131,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         // Simulate StackOverflow Author reputation reward system (+10 on question upvote)
         const updatedAuthor = { ...q.author };
-        if (updatedAuthor.id !== currentUser.id) {
-          updatedAuthor.reputation += voteDiff * 10;
+        if (currentUser && updatedAuthor.id !== currentUser.id) {
+          const currentRep = updatedAuthor.reputation_points ?? updatedAuthor.reputation ?? 0;
+          updatedAuthor.reputation_points = currentRep + voteDiff * 10;
+          updatedAuthor.reputation = currentRep + voteDiff * 10;
         }
 
         return {
@@ -157,6 +186,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const handleAddAnswer = (questionId: string, body: string) => {
+    if (!currentUser) return;
     const newAnswer: Answer = {
       id: `a-${Date.now()}`,
       questionId,
@@ -178,19 +208,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
     );
 
-    setCurrentUser((prev) => ({
-      ...prev,
-      reputation: prev.reputation + 15,
-      badges: {
-        ...prev.badges,
-        bronze: prev.badges.bronze + 1,
-      },
-    }));
+    setCurrentUser((prev) => {
+      if (!prev) return null;
+      const currentRep = prev.reputation_points ?? prev.reputation ?? 0;
+      const currentBadges = prev.badges || { gold: 0, silver: 0, bronze: 0 };
+      return {
+        ...prev,
+        reputation_points: currentRep + 15,
+        reputation: currentRep + 15,
+        badges: {
+          ...currentBadges,
+          bronze: currentBadges.bronze + 1,
+        },
+      };
+    });
 
     showNotification('Sukses memposting solusi! Anda memperoleh +15 Poin Reputasi! 🎉');
   };
 
   const handleAddCommentToQuestion = (questionId: string, body: string) => {
+    if (!currentUser) return;
     const newComment: Comment = {
       id: `c-${Date.now()}`,
       author: currentUser,
@@ -212,6 +249,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const handleAddCommentToAnswer = (questionId: string, answerId: string, body: string) => {
+    if (!currentUser) return;
     const newComment: Comment = {
       id: `c-${Date.now()}`,
       author: currentUser,
@@ -257,6 +295,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const handlePostQuestion = (title: string, body: string, tags: string[]) => {
+    if (!currentUser) return;
     const newQuestion: Question = {
       id: `q-${Date.now()}`,
       title,
@@ -275,10 +314,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const handleUpdateProfile = (updatedData: Partial<User>) => {
-    setCurrentUser((prev) => ({
+    if (!currentUser) return;
+    setCurrentUser((prev) => prev ? {
       ...prev,
       ...updatedData,
-    }));
+    } : null);
     showNotification('Informasi profil developer Anda sukses disimpan!');
   };
 
@@ -317,3 +357,4 @@ export function useApp() {
   }
   return context;
 }
+

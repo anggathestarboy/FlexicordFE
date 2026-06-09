@@ -103,19 +103,25 @@ export default function QuestionCard({
           {/* User author bio card */}
           <div className="flex items-center gap-2.5 self-end sm:self-auto bg-zinc-50/70 dark:bg-zinc-900/20 px-3 py-1.5 rounded-lg border border-zinc-100/50 dark:border-zinc-900/10">
             <img
-              src={question.author.avatarUrl}
-              alt={question.author.displayName}
+              src={
+                question.author.avatar_url
+                  ? question.author.avatar_url.startsWith('http')
+                    ? question.author.avatar_url
+                    : `https://pegaduanmasyarakat.alwaysdata.net/storage/${question.author.avatar_url}`
+                  : question.author.avatarUrl || 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80'
+              }
+              alt={question.author.username || question.author.displayName}
               referrerPolicy="no-referrer"
               className="h-6 w-6 rounded-full object-cover shadow-xs"
             />
             <div className="text-left">
               <span className="block text-xs font-semibold text-zinc-800 dark:text-zinc-200 hover:text-brand-blue transition-colors">
-                {question.author.displayName}
+                {question.author.username || question.author.displayName}
               </span>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-zinc-500 font-mono font-medium flex items-center gap-0.5">
                   <Award className="h-2.5 w-2.5 text-brand-blue" />
-                  {question.author.reputation.toLocaleString()}
+                  {(question.author.reputation_points ?? question.author.reputation ?? 0).toLocaleString()}
                 </span>
                 <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
                   • {question.createdAt}

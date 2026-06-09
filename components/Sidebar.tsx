@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 interface SidebarProps {
   currentView: ViewType;
   setView: (view: ViewType) => void;
-  currentUser: UserType;
+  currentUser: UserType | null;
   selectedTag: string | null;
   setSelectedTag: (tag: string | null) => void;
 }
@@ -160,7 +160,7 @@ export default function Sidebar({
           </p>
           <div className="mt-3 flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
             <Award className="h-3 w-3 text-brand-blue" />
-            <span>Current user: {currentUser.username}</span>
+            <span>Current user: {currentUser ? currentUser.username : 'Guest'}</span>
           </div>
         </div>
 

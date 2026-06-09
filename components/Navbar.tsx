@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 
 interface NavbarProps {
-  currentUser: User;
+  currentUser: User | null;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   currentView: ViewType;
@@ -83,32 +83,59 @@ export default function Navbar({
           {/* Theme Switcher Toggle */}
           <ThemeToggle />
 
-          {/* User Profile Card Link */}
-          <Link
-            href="/profile"
-            id="nav-profile-trigger"
-            className={`flex items-center gap-2 p-1 rounded-full sm:rounded-lg border transition-all cursor-pointer ${
-              pathname === '/profile'
-                ? 'border-brand-blue bg-brand-blue/5 dark:bg-brand-blue/15 shadow-sm'
-                : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-            }`}
-          >
-            <img
-              src={currentUser.avatarUrl}
-              alt={currentUser.displayName}
-              referrerPolicy="no-referrer"
-              className="h-8 w-8 rounded-full object-cover shadow-inner"
-            />
-            <div className="hidden sm:flex flex-col items-start pr-1 text-left">
-              <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 line-clamp-1 max-w-[85px]">
-                {currentUser.displayName}
-              </span>
-              <span className="text-[10px] text-zinc-500 font-mono font-medium flex items-center gap-1">
-                <Award className="h-3 w-3 text-brand-blue" />
-                {currentUser.reputation.toLocaleString()}
-              </span>
+          {/* User Section */}
+          {currentUser ? (
+            <Link
+              href="/profile"
+              id="nav-profile-trigger"
+              className={`flex items-center gap-2 p-1 rounded-full sm:rounded-lg border transition-all cursor-pointer ${
+                pathname === '/profile'
+                  ? 'border-brand-blue bg-brand-blue/5 dark:bg-brand-blue/15 shadow-sm'
+                  : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+              }`}
+            >
+              {currentUser.avatar_url ? (
+                <img
+                  src={
+                    currentUser.avatar_url.startsWith('http')
+                      ? currentUser.avatar_url
+                      : `https://pegaduanmasyarakat.alwaysdata.net/storage/${currentUser.avatar_url}`
+                  }
+                  alt={currentUser.username}
+                  referrerPolicy="no-referrer"
+                  className="h-8 w-8 rounded-full object-cover shadow-inner"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-sm shadow-inner uppercase shrink-0">
+                  {currentUser.username ? currentUser.username.charAt(0) : '?'}
+                </div>
+              )}
+              <div className="hidden sm:flex flex-col items-start pr-1 text-left">
+                <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 line-clamp-1 max-w-[85px]">
+                  {currentUser.username}
+                </span>
+                <span className="text-[10px] text-zinc-500 font-mono font-medium flex items-center gap-1">
+                  <Award className="h-3 w-3 text-brand-blue" />
+                  {(currentUser.reputation_points ?? currentUser.reputation ?? 0).toLocaleString()}
+                </span>
+              </div>
+            </Link>
+          ) : (
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Link
+                href="/login"
+                className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:text-brand-blue dark:hover:text-brand-blue px-2.5 py-1.5 rounded-lg transition-colors"
+              >
+                Masuk
+              </Link>
+              <Link
+                href="/register"
+                className="text-xs font-semibold bg-brand-blue hover:bg-brand-blue-hover text-white px-3 py-1.5 rounded-lg transition-all shadow-xs active:scale-95"
+              >
+                Daftar
+              </Link>
             </div>
-          </Link>
+          )}
 
        
         
