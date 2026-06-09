@@ -73,14 +73,20 @@ export default function LoginPage() {
       // Login berhasil
       // Data user dari response API (asumsikan struktur seperti ini)
       // Sesuaikan dengan response actual dari backend Anda
-      const loggedInUser: User = {
-        id: data.user?.id || `u-${Date.now()}`,
-        username: username,
-        avatar_url: data.user?.avatarUrl,
-        reputation_points: data.user?.reputation || 1540,
-        bio: data.user?.bio || 'Seorang penjelajah baris kode yang baru saja bergabung kembali di gerbang Flexicord.',
-        is_banned : data.is_banned
-      };
+    const loggedInUser: User = {
+  id: data.user.id,
+  username: data.user.username,
+  email: data.user.email,
+  avatar_url: data.user.avatar_url,
+  bio: data.user.bio,
+  reputation_points: data.user.reputation_points,
+  level: data.user.level,
+  is_banned: data.user.is_banned,
+  created_at: data.user.created_at,
+  updated_at: data.user.updated_at,
+  roles: data.user.roles,
+  primary_role: data.user.primary_role,
+};
 
       setCurrentUser(loggedInUser);
       showNotification(`Selamat datang kembali, ${loggedInUser.username}! 👋`);

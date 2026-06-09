@@ -83,11 +83,24 @@ export default function RegisterPage() {
 
       // Sukses — set user di context lalu redirect
       const registeredUser: User = {
-        id: `u-${Date.now()}`,
-        username: username.toLowerCase().trim(),
-        reputation_points: 1,
-        bio: 'Pengembang baru yang baru saja bergabung di Flexicord.',
-      };
+  id: `u-${Date.now()}`,
+  username: username.toLowerCase().trim(),
+  email: "",
+  avatar_url: null,
+  bio: "Pengembang baru yang baru saja bergabung di Flexicord.",
+  reputation_points: 1,
+  level: 1,
+  is_banned: 0,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  roles: [],
+  primary_role: {
+    id: "",
+    name: "user",
+    permissions: null,
+    created_at: new Date().toISOString(),
+  },
+};
 
       setCurrentUser(registeredUser);
       showNotification(`Akun berhasil dibuat! Selamat bergabung, ${registeredUser.displayName}! 🎉`);
