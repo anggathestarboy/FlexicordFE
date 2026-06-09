@@ -33,7 +33,7 @@ type PaginationLink = {
 };
 
 
-type SortTab = "terpopuler" | "terbaru" | "belum-terjawab";
+type SortTab = "terpopuler" | "terbaru";
 
 const AVATAR_BASE = "https://pegaduanmasyarakat.alwaysdata.net/storage/";
 
@@ -53,7 +53,7 @@ export default function HomePage() {
 
   const getSortParam = (): string => {
     if (activeSort === "terpopuler") return "view_count";
-    if (activeSort === "belum-terjawab") return "created_at";
+    if (activeSort === "terbaru") return "created_at";
     return "created_at";
   };
 
@@ -84,9 +84,8 @@ export default function HomePage() {
   };
 
   const sortTabs: { key: SortTab; label: string }[] = [
-    { key: "terbaru", label: "Terbaru" },
     { key: "terpopuler", label: "Terpopuler" },
-    { key: "belum-terjawab", label: "Belum Terjawab" },
+    { key: "terbaru", label: "Terbaru" },
   ];
 
   return (
