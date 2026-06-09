@@ -85,12 +85,8 @@ export default function RegisterPage() {
       const registeredUser: User = {
         id: `u-${Date.now()}`,
         username: username.toLowerCase().trim(),
-        displayName: username.trim(),
-        avatarUrl: `https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80`,
-        reputation: 1,
-        joinedDate: 'Juni 2026',
+        reputation_points: 1,
         bio: 'Pengembang baru yang baru saja bergabung di Flexicord.',
-        badges: { gold: 0, silver: 0, bronze: 0 },
       };
 
       setCurrentUser(registeredUser);

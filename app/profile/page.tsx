@@ -52,13 +52,13 @@ export default function ProfilePage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
               <img
                 src={currentUser.avatarUrl}
-                alt={currentUser.displayName}
+                alt={currentUser.username}
                 referrerPolicy="no-referrer"
                 className="h-28 w-28 rounded-2xl object-cover border-4 border-white dark:border-zinc-950 shadow-md bg-zinc-100"
               />
               <div className="space-y-1 mb-1">
                 <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                  <span>{currentUser.displayName}</span>
+                  <span>{currentUser.username}</span>
                   <span className="text-xs bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue px-2 py-0.5 rounded-full font-sans font-bold uppercase tracking-wider">
                     Developer elite
                   </span>
@@ -216,43 +216,14 @@ export default function ProfilePage() {
         <div className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xs text-center">
           <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">Reputasi</div>
           <div className="mt-1 text-2xl font-black text-brand-blue font-mono">
-            {currentUser.reputation.toLocaleString()}
+            {currentUser.reputation_point}
           </div>
           <div className="text-[10px] text-zinc-400 mt-1">92th percentile</div>
         </div>
 
-        <div className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xs text-center flex flex-col justify-between">
-          <div className="text-xs font-semibold text-amber-500 uppercase tracking-wide flex justify-center items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-amber-500" />
-            <span>Medali Emas</span>
-          </div>
-          <div className="mt-1.5 text-2xl font-black text-zinc-800 dark:text-zinc-100 font-mono">
-            {currentUser.badges.gold}
-          </div>
-          <div className="text-[9px] font-medium text-zinc-400 mt-1 uppercase tracking-wide">Solusi Top Kategori</div>
-        </div>
+    
 
-        <div className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xs text-center flex flex-col justify-between">
-          <div className="text-xs font-semibold text-zinc-400 dark:text-slate-400 uppercase tracking-wide flex justify-center items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-zinc-400 dark:bg-slate-400" />
-            <span>Medali Perak</span>
-          </div>
-          <div className="mt-1.5 text-2xl font-black text-zinc-800 dark:text-zinc-100 font-mono">
-            {currentUser.badges.silver}
-          </div>
-          <div className="text-[9px] font-medium text-zinc-400 mt-1 uppercase tracking-wide">Jawaban Mendukung</div>
-        </div>
-
-        <div className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xs text-center flex flex-col justify-between">
-          <div className="text-xs font-semibold text-amber-600 uppercase tracking-wide flex justify-center items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-amber-600" />
-            <span>Medali Perunggu</span>
-          </div>
-          <div className="mt-1.5 text-2xl font-black text-zinc-800 dark:text-zinc-100 font-mono">
-            {currentUser.badges.bronze}
-          </div>
-          <div className="text-[9px] font-medium text-zinc-400 mt-1 uppercase tracking-wide">Keaktifan Komunitas</div>
-        </div>
+      
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
