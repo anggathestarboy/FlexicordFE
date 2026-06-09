@@ -80,7 +80,7 @@ export async function GET() {
     console.log('Formatted user:', {
       username: formattedUser.username,
       primary_role: formattedUser.primary_role,
-      all_roles: userRoles.map(r => r.name)
+      all_roles: userRoles.map((r: { name: string }) => r.name)
     });
 
     return NextResponse.json({
