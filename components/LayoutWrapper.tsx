@@ -16,7 +16,6 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     searchQuery, 
     setSearchQuery, 
     notification,
-    questions,
     selectedTag,
     setSelectedTag
   } = useApp();
@@ -27,9 +26,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   
   const showRightSidebar = isHomePage || isQuestionDetailPage;
 
-  // Compute stats for RightSidebar
-  const hotQuestions = [...questions].sort((a, b) => b.votes - a.votes).slice(0, 4);
-
+  
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 font-sans antialiased text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
       {/* Dynamic Float Notification Toast Alert */}
@@ -71,16 +68,14 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
 
             {showRightSidebar && (
               <RightSidebar
-                hotQuestions={hotQuestions}
+               
                 popularTags={POPULAR_TAGS}
                 selectedTag={selectedTag}
                 onTagClick={(tag) => {
                   setSelectedTag(tag);
                   // Navigation handled in RightSidebar or by useApp state
                 }}
-                onQuestionClick={(id) => {
-                  // Navigation handled in RightSidebar
-                }}
+              
               />
             )}
           </div>

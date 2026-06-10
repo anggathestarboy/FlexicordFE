@@ -1,6 +1,6 @@
- "use client";
+"use client";
 
-import { MessageSquare, Search, Award, Plus, ArrowLeft, LogOut } from 'lucide-react';
+import { MessageSquare, Search, Award, Plus, ArrowLeft, LogOut, Bell } from 'lucide-react';
 import { User, ViewType } from '@/lib/types';
 import ThemeToggle from './ThemeToggle';
 import FlexicordLogo from './FlexicordLogo';
@@ -47,16 +47,15 @@ export default function Navbar({
     <header className="sticky top-0 z-40 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Brand Logo */}
-        <Link 
+        <Link
           href="/"
-          className="flex items-center  cursor-pointer group active:scale-95 transition-transform shrink-0"
+          className="flex items-center cursor-pointer group active:scale-95 transition-transform shrink-0"
         >
           <div className="p-1 px-1.5 rounded-lg group-hover:scale-105 transition-transform">
             <FlexicordLogo size={32} className="transform -rotate-6 transition-transform group-hover:rotate-0" />
           </div>
-          <span className="text-xl font-bold font-sans tracking-tight text-gray-800 dark:text-white flex items-center ">
+          <span className="text-xl font-bold font-sans tracking-tight text-gray-800 dark:text-white flex items-center">
             Flexi<span className="text-brand-blue">cord</span>
-
           </span>
         </Link>
 
@@ -68,20 +67,36 @@ export default function Navbar({
           <input
             id="nav-search-input"
             type="text"
-            placeholder="Cari pertanyaan, tag, atau kendala error (cth: Next.js)..."
+            placeholder="cari username.."
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-blue/50 focus:border-brand-blue dark:focus:border-brand-blue transition-all duration-150"
           />
         </div>
 
-        {/* Mobile Navigation / Trigger Actions */}
+        {/* Right Actions */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* Ask Question Button */}
-        
 
           {/* Theme Switcher Toggle */}
           <ThemeToggle />
+
+          {/* Bell Notifikasi — hanya tampil kalau login */}
+          {currentUser && (
+            <Link
+              href="/notifications"
+              className={`relative p-2 rounded-lg border transition-all ${
+                pathname === '/notifications'
+                  ? 'border-brand-blue bg-brand-blue/5 dark:bg-brand-blue/15 text-brand-blue'
+                  : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+              }`}
+            >
+              <Bell className="h-4 w-4" />
+              {/* Badge unread — ganti angka atau sembunyikan kalau tidak ada notif */}
+              <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none">
+                3
+              </span>
+            </Link>
+          )}
 
           {/* User Section */}
           {currentUser ? (
@@ -137,8 +152,6 @@ export default function Navbar({
             </div>
           )}
 
-       
-        
         </div>
       </div>
 

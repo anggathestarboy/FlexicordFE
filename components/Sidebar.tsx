@@ -85,7 +85,7 @@ export default function Sidebar({
     },
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ['me'] });
-      router.push('/');
+      window.location.href = "/"
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: ['me'] });
