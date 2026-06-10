@@ -1,12 +1,11 @@
 "use client";
 
-import { Globe, Tag, User, HelpCircle, Code, Award, LogIn, UserPlus, LogOut } from 'lucide-react';
+import { Globe, Tag, User, HelpCircle, LogIn, UserPlus, LogOut, List, Tags, Flag, ScrollText } from 'lucide-react';
 import { ViewType, User as UserType } from '@/lib/types';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { useEffect, useState } from 'react';
 
 interface SidebarProps {
   currentView: ViewType;
@@ -16,17 +15,39 @@ interface SidebarProps {
   setSelectedTag: (tag: string | null) => void;
 }
 
-// Fungsi untuk fetch status login
-const fetchLoginStatus = async () => {
+interface ApiUser {
+  id: string;
+  username: string;
+  email: string;
+  avatar_url: string | null;
+  bio: string | null;
+  reputation_points: number;
+  level: number;
+  is_banned: number;
+  primary_role: {
+    id: string;
+    name: string;
+    permissions: string | null;
+  } | null;
+}
+
+interface MeResponse {
+  message: string;
+  user: ApiUser;
+}
+
+const fetchMe = async (): Promise<{ isLoggedIn: boolean; user: ApiUser | null }> => {
   try {
-    const response = await axios.get('/api/me');
-    return response.status === 200;
-  } catch (error) {
-    return false;
+    const response = await axios.get<MeResponse>('/api/me');
+    if (response.status === 200 && response.data.user) {
+      return { isLoggedIn: true, user: response.data.user };
+    }
+    return { isLoggedIn: false, user: null };
+  } catch {
+    return { isLoggedIn: false, user: null };
   }
 };
 
-// Fungsi untuk logout
 const logoutUser = async () => {
   await axios.post('/api/logout');
 };
@@ -41,57 +62,56 @@ export default function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [optimisticStatus, setOptimisticStatus] = useState<boolean | null>(null);
 
-  // React Query untuk fetch status login
-  const { data: isLoggedIn = false, isLoading: isAuthLoading } = useQuery({
-    queryKey: ['loginStatus'],
-    queryFn: fetchLoginStatus,
+  const { data, isLoading } = useQuery({
+    queryKey: ['me'],
+    queryFn: fetchMe,
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
-  // Update optimistic status
-  useEffect(() => {
-    setOptimisticStatus(isLoggedIn);
-  }, [isLoggedIn]);
+  const isLoggedIn = data?.isLoggedIn ?? false;
+  const apiUser = data?.user ?? null;
+  const isModerator =
+    apiUser?.primary_role?.name === 'moderator' ||
+    apiUser?.primary_role?.name === 'admin';
 
-  // React Query Mutation untuk logout
   const logoutMutation = useMutation({
     mutationFn: logoutUser,
-    onSuccess: () => {
-      // Optimistic update: langsung set status ke false
-      setOptimisticStatus(false);
-      
-      // Clear cache
-      queryClient.removeQueries({ queryKey: ['currentUser'] });
-      queryClient.removeQueries({ queryKey: ['loginStatus'] });
-      queryClient.setQueryData(['loginStatus'], false);
-      queryClient.setQueryData(['currentUser'], null);
-      
-      // Navigasi tanpa refresh
-      window.location.href = "/";
-      
+    onMutate: () => {
+      queryClient.setQueryData(['me'], { isLoggedIn: false, user: null });
     },
-    onError: (error) => {
-      console.error('Logout failed:', error);
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ['me'] });
+      router.push('/');
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['me'] });
     },
   });
 
-  const handleLogout = () => {
-    logoutMutation.mutate();
-  };
+  const modNavItem = (href: string, icon: React.ReactNode, label: string) => (
+    <Link
+      href={href}
+      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer ${
+        pathname === href
+          ? 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 font-semibold'
+          : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white'
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+    </Link>
+  );
 
-  // Gunakan optimistic status jika ada, fallback ke isLoggedIn
-  const displayLoggedIn = optimisticStatus !== null ? optimisticStatus : isLoggedIn;
-
-  // Tampilkan loading state jika masih mengecek auth
-  if (isAuthLoading && optimisticStatus === null) {
+  if (isLoading && data === undefined) {
     return (
       <aside className="w-64 hidden lg:block shrink-0 border-r border-zinc-200 dark:border-zinc-800 pr-6 pt-6 min-h-[calc(100vh-4rem)]">
         <div className="space-y-6 sticky top-22">
-          <div className="animate-pulse">
-            <div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-24 mb-4"></div>
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-24"></div>
             <div className="space-y-2">
               <div className="h-8 bg-zinc-200 dark:bg-zinc-800 rounded"></div>
               <div className="h-8 bg-zinc-200 dark:bg-zinc-800 rounded"></div>
@@ -106,7 +126,8 @@ export default function Sidebar({
   return (
     <aside className="w-64 hidden lg:block shrink-0 border-r border-zinc-200 dark:border-zinc-800 pr-6 pt-6 min-h-[calc(100vh-4rem)]">
       <div className="space-y-6 sticky top-22">
-        {/* Navigation Section */}
+
+        {/* Navigasi Utama */}
         <div>
           <h3 className="px-3 text-[10px] font-bold tracking-wider text-zinc-400 dark:text-zinc-500 uppercase font-sans">
             Navigasi Utama
@@ -125,9 +146,7 @@ export default function Sidebar({
                 <Globe className="h-4 w-4" />
                 <span>Pertanyaan</span>
               </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-mono">
-                3
-              </span>
+            
             </Link>
 
             <Link
@@ -140,7 +159,7 @@ export default function Sidebar({
               }`}
             >
               <Tag className="h-4 w-4" />
-              <span>Tag Terpopuler (React)</span>
+              <span>Kategori</span>
             </Link>
 
             <Link
@@ -169,15 +188,30 @@ export default function Sidebar({
           </nav>
         </div>
 
-        {/* Auth Section */}
+        {/* Panel Moderasi */}
+        {isModerator && (
+          <div>
+            <h3 className="px-3 text-[10px] font-bold tracking-wider text-amber-500 dark:text-amber-400 uppercase font-sans">
+              Panel Moderasi
+            </h3>
+            <nav className="mt-2.5 space-y-1">
+              {modNavItem('/moderation/categories', <List className="h-4 w-4" />, 'List Categories')}
+              {modNavItem('/moderation/tags', <Tags className="h-4 w-4" />, 'List Tags')}
+              {modNavItem('/moderation/reports', <Flag className="h-4 w-4" />, 'Users Report')}
+              {modNavItem('/moderation/logs', <ScrollText className="h-4 w-4" />, 'Moderation Logs')}
+            </nav>
+          </div>
+        )}
+
+        {/* Akses & Keanggotaan */}
         <div>
           <h3 className="px-3 text-[10px] font-bold tracking-wider text-zinc-400 dark:text-zinc-500 uppercase font-sans">
             Akses & Keanggotaan
           </h3>
           <nav className="mt-2.5 space-y-1">
-            {displayLoggedIn ? (
+            {isLoggedIn ? (
               <button
-                onClick={handleLogout}
+                onClick={() => logoutMutation.mutate()}
                 disabled={logoutMutation.isPending}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -197,7 +231,6 @@ export default function Sidebar({
                   <LogIn className="h-4 w-4" />
                   <span>Masuk</span>
                 </Link>
-
                 <Link
                   href="/register"
                   className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer ${
@@ -214,26 +247,12 @@ export default function Sidebar({
           </nav>
         </div>
 
-        {/* Info Box */}
-        <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
-          <div className="flex items-center gap-2 text-zinc-900 dark:text-white font-semibold text-xs">
-            <Code className="h-4 w-4 text-brand-blue" />
-            <span>Misi Developer</span>
-          </div>
-          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-            Dapatkan reputasi dengan berkontribusi memberikan jawaban solutif dan membagikan kode berkualitas tinggi.
-          </p>
-          <div className="mt-3 flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
-            <Award className="h-3 w-3 text-brand-blue" />
-            <span>Current user: {currentUser ? currentUser.username : 'Guest'}</span>
-          </div>
-        </div>
-
         {/* Footer */}
         <div className="px-3 text-[10px] text-zinc-400 dark:text-zinc-500 space-y-1">
           <p>© 2026 Flexicord Inc.</p>
           <p>Didesain ramah mata demi kenyamanan ngoding tanpa lelah.</p>
         </div>
+
       </div>
     </aside>
   );
