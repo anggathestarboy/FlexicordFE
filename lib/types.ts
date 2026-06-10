@@ -86,6 +86,8 @@ export interface Post {
   vote_score: number;
   is_answered: number;
   comments_count: number;
+  likes_count: number;
+  bookmarks_count: number;
   created_at: string;
   is_edited: boolean;
   tags: Tag[];
