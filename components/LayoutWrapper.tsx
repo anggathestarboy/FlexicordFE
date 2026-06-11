@@ -21,7 +21,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   } = useApp();
 
   const isAuthPage = pathname === '/login' || pathname === '/register';
-  const isQuestionDetailPage = pathname.startsWith('/questions/');
+  const isQuestionDetailPage = pathname.startsWith('/posts/');
   const isHomePage = pathname === '/' || pathname === '/homepage';
   
   const showRightSidebar = isHomePage || isQuestionDetailPage;

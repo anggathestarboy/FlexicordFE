@@ -66,7 +66,7 @@ export default function ProfilePage() {
     setQuestions((prev) =>
       prev.map((q) => (q.id === id ? { ...q, views: q.views + 1 } : q))
     );
-    router.push(`/questions/${id}`);
+    router.push(`/posts/${id}`);
   };
 
   const badges = currentUser.badges || {

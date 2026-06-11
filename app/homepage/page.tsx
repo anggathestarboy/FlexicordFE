@@ -303,7 +303,7 @@ function HomePageContent() {
           {posts.map((post) => (
             <div
               key={post.id}
-              onClick={() => router.push(`/questions/${post.id}`)}
+              onClick={() => router.push(`/posts/${post.id}`)}
               className="group bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 hover:border-brand-blue hover:shadow-sm transition-all cursor-pointer"
             >
               {/* TOP ROW: title + badge */}

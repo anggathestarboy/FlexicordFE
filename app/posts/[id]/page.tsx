@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, use, useEffect } from "react";
+import React, { useState, use, useEffect, useRef } from "react";
 import {
   ChevronUp,
   ChevronDown,
@@ -79,6 +79,8 @@ function formatTextBody(text: string) {
   });
 }
 
+const fetchCache: Record<string, Promise<any>> = {};
+
 export default function QuestionDetailPage({
   params,
 }: {
@@ -95,29 +97,59 @@ export default function QuestionDetailPage({
   const [showQuestionCommentInput, setShowQuestionCommentInput] =
     useState(false);
 
+  // ─── Scroll to top on navigation ─────────────────────────────────────────────
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [id]);
+
   // ─── Fetch post detail ───────────────────────────────────────────────────────
   useEffect(() => {
+    let active = true;
+
     const fetchPost = async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/posts/${id}`);
-        const json = await res.json();
-        if (!res.ok) {
-          setError(json.message || "Post tidak ditemukan");
-          return;
+        if (!fetchCache[id]) {
+          fetchCache[id] = fetch(`/api/posts/${id}`).then(async (res) => {
+            if (!res.ok) {
+              const json = await res.json();
+              throw new Error(json.message || "Post tidak ditemukan");
+            }
+            return res.json();
+          });
+
+          // Clean up cache after a delay to ensure subsequent page loads get fresh data
+          fetchCache[id].finally(() => {
+            setTimeout(() => {
+              delete fetchCache[id];
+            }, 1000);
+          });
         }
-        // Route mengembalikan { status, data } sesuai PostDetailResponse
-        setPost(json.data ?? json);
-      } catch (err) {
+
+        const json = await fetchCache[id];
+        if (active) {
+          // Route mengembalikan { status, data } sesuai PostDetailResponse
+          setPost(json.data ?? json);
+        }
+      } catch (err: any) {
         console.error("Fetch post detail error:", err);
-        setError("Gagal memuat data. Silakan coba lagi.");
+        if (active) {
+          setError(err.message || "Gagal memuat data. Silakan coba lagi.");
+        }
+        delete fetchCache[id];
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
     fetchPost();
+
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   // ─── Add comment handler (placeholder, sambungkan ke API komentar jika ada) ──
