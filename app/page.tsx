@@ -14,6 +14,7 @@ import {
 import { useRouter } from "next/navigation";
 import { ApiResponse, Post } from "@/lib/types";
 
+type UUID = string;
 type SortTab = "terpopuler" | "terbaru";
 
 const AVATAR_BASE = "https://pegaduanmasyarakat.alwaysdata.net/storage/";
@@ -62,6 +63,45 @@ export default function HomePage() {
   const handleSortChange = (sort: SortTab) => {
     setActiveSort(sort);
     setCurrentPage(1);
+  };
+
+  const handleLike = async (e: React.MouseEvent, postId: UUID) => {
+    e.stopPropagation();
+
+    // Simpan state sebelumnya untuk rollback
+    const prevPosts = posts;
+
+    // Optimistic update
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              likes_count: post.user_has_liked
+                ? post.likes_count - 1
+                : post.likes_count + 1,
+              user_has_liked: !post.user_has_liked,
+            }
+          : post
+      )
+    );
+
+    try {
+      const res = await fetch("/api/likes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_id: postId }),
+      });
+
+      if (!res.ok) {
+        // Rollback jika gagal
+        setPosts(prevPosts);
+      }
+    } catch (error) {
+      console.error("Like error:", error);
+      // Rollback jika error
+      setPosts(prevPosts);
+    }
   };
 
   const sortTabs: { key: SortTab; label: string }[] = [
@@ -177,10 +217,23 @@ export default function HomePage() {
                     <ArrowBigUp className="h-4 w-4" />
                     <span>{post.vote_score}</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Heart className="h-4 w-4" />
+
+                  {/* LIKE BUTTON */}
+                  <button
+                    onClick={(e) => handleLike(e, post.id)}
+                    className={`flex items-center gap-1 transition-colors ${
+                      post.user_has_liked
+                        ? "text-red-500"
+                        : "text-zinc-500 dark:text-zinc-400 hover:text-red-400"
+                    }`}
+                  >
+                    <Heart
+                      className="h-4 w-4"
+                      fill={post.user_has_liked ? "currentColor" : "none"}
+                    />
                     <span>{post.likes_count}</span>
-                  </div>
+                  </button>
+
                   <div className="flex items-center gap-1">
                     <Bookmark className="h-4 w-4" />
                     <span>{post.bookmarks_count}</span>
