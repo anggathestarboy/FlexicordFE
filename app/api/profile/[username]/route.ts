@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import type {
   UserDetailResponse,
   ProfileRouteParams,
@@ -20,20 +21,28 @@ export async function GET(
     );
   }
 
+  // Ambil token dari cookie (sama seperti /api/user)
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+
   try {
-    const response = await fetch(`${BASE_URL}/detail-user/${encodeURIComponent(username)}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        // Forward Authorization header if provided by the caller (e.g. for private profiles)
-        ...(request.headers.get("Authorization")
-          ? { Authorization: request.headers.get("Authorization")! }
-          : {}),
-      },
-      // Revalidate at most once every 60 seconds (Next.js cache)
-      next: { revalidate: 60 },
-    });
+    const response = await fetch(
+      `${BASE_URL}/detail-user/${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          // Prioritaskan cookie token, fallback ke Authorization header dari caller
+          ...(token
+            ? { Authorization: `Bearer ${token}` }
+            : request.headers.get("Authorization")
+            ? { Authorization: request.headers.get("Authorization")! }
+            : {}),
+        },
+        next: { revalidate: 60 },
+      }
+    );
 
     if (response.status === 404) {
       return NextResponse.json(
