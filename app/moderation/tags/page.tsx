@@ -1,11 +1,3 @@
-import React from 'react'
+import TagsPage from "../../tags/page";
 
-const page = () => {
-  return (
-    <div>
-      Hello Tags
-    </div>
-  )
-}
-
-export default page
+export default TagsPage;

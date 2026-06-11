@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import axios from "axios";
 import type { BadgesApiResponse, BadgesResponse } from "./BadgesType";
 
 const EXTERNAL_API_URL = process.env.NEXT_PUBLIC_BASE_URL;
@@ -12,8 +13,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<BadgesResp
       headers: {
         "Content-Type": "application/json",
       },
-      // Revalidate cache every 60 seconds (optional, adjust as needed)
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
 
     if (!response.ok) {
@@ -60,3 +60,35 @@ export async function GET(request: NextRequest): Promise<NextResponse<BadgesResp
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const token = request.cookies.get("token")?.value;
+
+    if (!token) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const formData = await request.formData();
+
+    const response = await axios.post(
+      `${EXTERNAL_API_URL}/badges`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      }
+    );
+
+    return NextResponse.json(response.data);
+  } catch (error: any) {
+    console.error("CREATE BADGE ERROR:", error.response?.data || error.message);
+
+    return NextResponse.json(
+      { message: error.response?.data?.message || "Gagal membuat badge" },
+      { status: error.response?.status || 500 }
+    );
+  }
+}
