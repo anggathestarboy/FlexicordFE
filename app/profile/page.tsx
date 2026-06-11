@@ -1,382 +1,1212 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Award, Calendar, Link as LinkIcon, MapPin, Github, FileText, Heart, ShieldAlert, Star, MessageSquare } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from "react";
+import {
+  Award,
+  Calendar,
+  FileText,
+  Users,
+  UserCheck,
+  Shield,
+  CheckCircle2,
+  CircleDot,
+  TrendingUp,
+  Heart,
+  MessageSquare,
+  ChevronRight,
+  Edit3,
+  Mail,
+  Star,
+  ShieldCheck,
+  Bookmark,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useApp } from "@/context/AppContext";
 
-export default function ProfilePage() {
-  const { currentUser, questions, handleUpdateProfile, setQuestions } = useApp();
-  const router = useRouter();
+// ─── Types (mirror dari /profile/[username]) ──────────────────────────────────
 
-  // Redirect to login if user is not authenticated
-  useEffect(() => {
-    if (currentUser === null) {
-      router.push('/login');
-    }
-  }, [currentUser, router]);
+interface RolePivot {
+  user_id: string;
+  role_id: string;
+}
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [displayName, setDisplayName] = useState('');
-  const [bio, setBio] = useState('');
-  const [location, setLocation] = useState('');
-  const [websiteUrl, setWebsiteUrl] = useState('');
-  const [githubUrl, setGithubUrl] = useState('');
+interface Role {
+  id: string;
+  name: string;
+  permissions: string | null;
+  created_at: string;
+  pivot: RolePivot;
+}
 
-  // Populate form states once user is loaded
-  useEffect(() => {
-    if (currentUser) {
-      setDisplayName(currentUser.username || '');
-      setBio(currentUser.bio || '');
-      setLocation(currentUser.location || '');
-      setWebsiteUrl(currentUser.websiteUrl || '');
-      setGithubUrl(currentUser.githubUrl || '');
-    }
-  }, [currentUser]);
+interface BadgePivot {
+  user_id: string;
+  badge_id: string;
+  created_at: string;
+  updated_at: string;
+}
 
-  if (!currentUser) {
+export type BadgeTier = "bronze" | "silver" | "gold" | "platinum";
+
+interface Badge {
+  id: string;
+  name: string;
+  description: string;
+  icon_url: string | null;
+  tier: BadgeTier;
+  condition_type: string;
+  condition_value: number;
+  pivot: BadgePivot;
+}
+
+interface TagPivot {
+  post_id: string;
+  tag_id: string;
+}
+
+interface Tag {
+  id: string;
+  name: string;
+  slug: string;
+  color: string;
+  usage_count: number;
+  created_at: string;
+  pivot: TagPivot;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  parent_id: string | null;
+  created_at: string;
+}
+
+interface Post {
+  id: string;
+  user_id: string;
+  category_id: string;
+  title: string;
+  body: string;
+  status: "open" | "closed" | "archived";
+  view_count: number;
+  vote_score: number;
+  is_answered: 0 | 1;
+  accepted_answer_id: string | null;
+  created_at: string;
+  updated_at: string;
+  likes_count: number;
+  bookmarks_count: number;
+  comments_count: number;
+  upvotes_count: number;
+  downvotes_count: number;
+  votes_count: number;
+  user_has_liked: boolean;
+  user_has_bookmarked: boolean;
+  tags: Tag[];
+  category: Category;
+}
+
+interface UserDetail {
+  id: string;
+  username: string;
+  email: string;
+  avatar_url: string | null;
+  bio: string | null;
+  reputation_points: number;
+  level: number;
+  is_banned: 0 | 1;
+  created_at: string;
+  updated_at: string;
+  posts_count: number;
+  followers_count: number;
+  following_count: number;
+  badges_count: number;
+  roles: Role[];
+  badges: Badge[];
+  posts: Post[];
+}
+
+interface UserDetailResponse {
+  message: string;
+  user: UserDetail;
+  is_following: boolean;
+}
+
+// Likes types
+interface LikeComment {
+  id: string;
+  post_id: string;
+  body: string;
+  vote_score: number;
+  is_accepted: 0 | 1;
+  created_at: string;
+}
+
+interface LikePost {
+  id: string;
+  title: string;
+  body: string;
+  status: "open" | "closed";
+  view_count: number;
+  vote_score: number;
+  is_answered: 0 | 1;
+  created_at: string;
+}
+
+interface LikeItem {
+  id: string;
+  user_id: string;
+  target_id: string;
+  target_type: "post" | "comment";
+  created_at: string;
+  post: LikePost | null;
+  comment: LikeComment | null;
+}
+
+interface LikesApiResponse {
+  likes: LikeItem[];
+}
+
+// ─── Bookmark types ───────────────────────────────────────────────────────────
+
+interface BookmarkItem {
+  id: string;
+  user_id: string;
+  post_id: string;
+  created_at: string;
+}
+
+interface BookmarksApiResponse {
+  message: string;
+  data: BookmarkItem[];
+}
+
+interface BookmarkPostDetail {
+  id: string;
+  title: string;
+  body: string;
+  status: string;
+  view_count: number;
+  vote_score: number;
+  is_answered: number;
+  likes_count: number;
+  comments_count: number;
+  upvotes_count: number;
+  created_at: string;
+  category: { id: string; name: string; slug: string };
+  tags: { id: string; name: string; color: string }[];
+  user: { id: string; username: string; avatar_url: string | null };
+}
+
+type TabKey = "posts" | "activity" | "likes" | "bookmarks" | "credentials";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const STORAGE_BASE = "https://pegaduanmasyarakat.alwaysdata.net/storage/";
+
+function avatarSrc(url: string | null): string | null {
+  if (!url) return null;
+  return url.startsWith("http") ? url : `${STORAGE_BASE}${url}`;
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatDateShort(iso: string): string {
+  return new Date(iso).toLocaleDateString("id-ID", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatDateFull(iso: string): string {
+  return new Date(iso).toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function primaryRole(roles: Role[]): string {
+  const priority = ["admin", "moderator", "user"];
+  for (const p of priority) {
+    const found = roles.find((r) => r.name === p);
+    if (found) return found.name;
+  }
+  return roles[0]?.name ?? "member";
+}
+
+function roleBadgeStyle(role: string): string {
+  switch (role) {
+    case "admin":
+      return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
+    case "moderator":
+      return "bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400";
+    default:
+      return "bg-brand-blue/10 text-brand-blue dark:bg-brand-blue/20";
+  }
+}
+
+function tierColor(tier: BadgeTier): string {
+  switch (tier) {
+    case "gold":
+      return "#f59e0b";
+    case "silver":
+      return "#94a3b8";
+    case "platinum":
+      return "#8b5cf6";
+    default:
+      return "#b45309";
+  }
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function PostStatusBadge({ post }: { post: Post | LikePost }) {
+  if (post.is_answered) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Memuat sesi Anda...</p>
+      <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded">
+        <CheckCircle2 className="h-2.5 w-2.5" />
+        Terjawab
+      </span>
+    );
+  }
+  if (post.status === "open") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400 px-1.5 py-0.5 rounded">
+        <CircleDot className="h-2.5 w-2.5" />
+        Terbuka
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 px-1.5 py-0.5 rounded">
+      Ditutup
+    </span>
+  );
+}
+
+function BadgesSection({
+  badges,
+  count,
+}: {
+  badges: Badge[];
+  count: number;
+}) {
+  if (count === 0 || badges.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 gap-2">
+        <Award className="h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">
+          Belum ada lencana diraih.
+        </p>
       </div>
     );
   }
 
-  const userQuestions = questions.filter((q) => q.author.id === currentUser.id);
+  return (
+    <div className="flex flex-wrap gap-3 pt-1">
+      {badges.map((b) => (
+        <div
+          key={b.id}
+          className="flex items-center gap-2 px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl"
+        >
+          {b.icon_url ? (
+            <img
+              src={avatarSrc(b.icon_url) ?? ""}
+              alt={b.name}
+              className="h-6 w-6 rounded object-cover"
+            />
+          ) : (
+            <Award
+              className="h-5 w-5 shrink-0"
+              style={{ color: tierColor(b.tier) }}
+            />
+          )}
+          <div className="text-left">
+            <p className="text-xs font-bold text-zinc-800 dark:text-zinc-100 leading-none">
+              {b.name}
+            </p>
+            {b.description && (
+              <p className="text-[10px] text-zinc-400 mt-0.5">
+                {b.description}
+              </p>
+            )}
+            <span
+              className="text-[9px] font-bold uppercase tracking-wider mt-0.5 inline-block"
+              style={{ color: tierColor(b.tier) }}
+            >
+              {b.tier}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
-  const userAnswersCount = questions.reduce((acc, q) => {
-    const hasAnswered = q.answers.some((ans) => ans.author.id === currentUser.id);
-    return acc + (hasAnswered ? 1 : 0);
-  }, 0);
+function LikesSection({
+  username,
+  onNavigatePost,
+}: {
+  username: string;
+  onNavigatePost: (id: string) => void;
+}) {
+  const [data, setData] = useState<LikesApiResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleUpdateProfile({
-      username: displayName, // Update username as new display field
-      bio,
-      location,
-      websiteUrl,
-      githubUrl,
-    });
-    setIsEditing(false);
-  };
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/likes-user/${username}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Gagal memuat likes.");
+        return res.json() as Promise<LikesApiResponse>;
+      })
+      .then(setData)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [username]);
 
-  const onQuestionClick = (id: string) => {
-    setQuestions((prev) =>
-      prev.map((q) => (q.id === id ? { ...q, views: q.views + 1 } : q))
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12 gap-2">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-blue" />
+        <span className="text-xs text-zinc-400">Memuat likes…</span>
+      </div>
     );
-    router.push(`/questions/${id}`);
-  };
+  }
 
-  const badges = currentUser.badges || {
-    gold: Math.floor((currentUser.level || 0) / 3),
-    silver: Math.floor((currentUser.level || 0) / 2),
-    bronze: currentUser.level || 0
-  };
+  if (error || !data) {
+    return (
+      <p className="text-xs text-red-500 italic py-6 text-center">
+        {error ?? "Gagal memuat data likes."}
+      </p>
+    );
+  }
 
-  const reputation = currentUser.reputation_points ?? currentUser.reputation ?? 0;
-  const joinedDate = currentUser.created_at
-    ? new Date(currentUser.created_at).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
-    : currentUser.joinedDate || 'Juni 2026';
+  if (data.likes.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-10 gap-2">
+        <Heart className="h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+        <p className="text-xs text-zinc-400 italic">Belum ada like.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-        <div className="h-32 bg-gradient-to-r from-brand-blue to-sky-600 relative" />
-
-        <div className="p-6 relative pt-0 mt-7">
-          <div className="-mt-16 mb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-              {currentUser.avatar_url ? (
-                <img
-                  src={
-                    currentUser.avatar_url.startsWith('http')
-                      ? currentUser.avatar_url
-                      : `https://pegaduanmasyarakat.alwaysdata.net/storage/${currentUser.avatar_url}`
-                  }
-                  alt={currentUser.username}
-                  referrerPolicy="no-referrer"
-                  className="h-28 w-28 rounded-2xl object-cover border-4 border-white dark:border-zinc-950 shadow-md bg-zinc-100 shrink-0"
-                />
+    <div className="space-y-2">
+      {data.likes.map((like) => (
+        <div
+          key={like.id}
+          className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-1.5"
+        >
+          <div className="flex items-center justify-between">
+            <span
+              className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                like.target_type === "post"
+                  ? "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400"
+                  : "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
+              }`}
+            >
+              {like.target_type === "post" ? (
+                <FileText className="h-2.5 w-2.5" />
               ) : (
-                <div className="h-28 w-28 rounded-2xl bg-brand-blue text-white flex items-center justify-center font-bold text-3xl shadow-inner uppercase border-4 border-white dark:border-zinc-950 shrink-0 select-none">
-                  {currentUser.username ? currentUser.username.charAt(0) : '?'}
-                </div>
+                <MessageSquare className="h-2.5 w-2.5" />
               )}
-              <div className="space-y-1 mb-1 text-left">
-                <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                  <span>{currentUser.username}</span>
-                  <span className="text-xs bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue px-2 py-0.5 rounded-full font-sans font-bold uppercase tracking-wider">
-                    {currentUser.primary_role?.name || 'Developer'}
-                  </span>
-                </h1>
-                <p className="text-xs sm:text-sm text-zinc-500 font-mono">@{currentUser.username}</p>
-              </div>
-            </div>
-
-            {!isEditing && (
-              <button
-                id="btn-edit-profile-toggle"
-                onClick={() => setIsEditing(true)}
-                className="bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 cursor-pointer active:scale-97 transition-all"
-              >
-                Edit Profil Developer
-              </button>
-            )}
+              {like.target_type === "post" ? "Post" : "Komentar"}
+            </span>
+            <span className="text-[10px] text-zinc-400 font-mono">
+              {formatDate(like.created_at)}
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-zinc-100 dark:border-zinc-900/60">
-            <div className="space-y-3.5 text-xs sm:text-sm text-zinc-650 dark:text-zinc-400 text-left">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-zinc-450 shrink-0" />
-                <span>Terdaftar: <strong className="text-zinc-800 dark:text-zinc-200 font-normal">{joinedDate}</strong></span>
-              </div>
-              {currentUser.location && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-zinc-450 shrink-0" />
-                  <span>Lokasi: <strong className="text-zinc-800 dark:text-zinc-200 font-normal">{currentUser.location}</strong></span>
-                </div>
-              )}
-              {currentUser.websiteUrl && (
-                <div className="flex items-center gap-2">
-                  <LinkIcon className="h-4 w-4 text-zinc-450 shrink-0" />
-                  <a
-                    href={currentUser.websiteUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-brand-blue hover:underline font-medium"
-                  >
-                    {currentUser.websiteUrl.replace(/https?:\/\//, '')}
-                  </a>
-                </div>
-              )}
-              {currentUser.githubUrl && (
-                <div className="flex items-center gap-2">
-                  <Github className="h-4 w-4 text-zinc-450 shrink-0" />
-                  <a
-                    href={currentUser.githubUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-brand-blue hover:underline font-medium"
-                  >
-                    {currentUser.githubUrl.replace(/https?:\/\/github\.com\//, '')}
-                  </a>
-                </div>
-              )}
-            </div>
-
-            <div className="md:col-span-2 text-left">
-              <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-505 uppercase tracking-widest mb-1.5">
-                Rangkuman Bio Profesional
-              </h3>
-              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed italic">
-                {currentUser.bio || 'Belum ada ringkasan bio ditulis. Klik Edit Profil untuk membagikan keahlian Anda ke sesama developer.'}
+          {like.target_type === "post" && like.post ? (
+            <div
+              className="cursor-pointer group"
+              onClick={() => onNavigatePost(like.post!.id)}
+            >
+              <p className="text-xs font-semibold text-zinc-900 dark:text-white group-hover:text-brand-blue line-clamp-1 flex items-center gap-1">
+                {like.post.title}
+                <ChevronRight className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
               </p>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
+                {like.post.body}
+              </p>
+              <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-400 font-mono">
+                <PostStatusBadge post={like.post} />
+                <span>↑{like.post.vote_score}</span>
+                <span>{like.post.view_count} views</span>
+              </div>
             </div>
-          </div>
+          ) : like.target_type === "comment" && like.comment ? (
+            <div
+              className="cursor-pointer group"
+              onClick={() => onNavigatePost(like.comment!.post_id)}
+            >
+              <p className="text-xs text-zinc-700 dark:text-zinc-300 line-clamp-2 group-hover:text-brand-blue">
+                &ldquo;{like.comment.body}&rdquo;
+              </p>
+              <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-400 font-mono">
+                {like.comment.is_accepted ? (
+                  <span className="text-emerald-600 font-bold">✓ Diterima</span>
+                ) : null}
+                <span>↑{like.comment.vote_score}</span>
+                <span className="text-[10px] text-zinc-400">
+                  klik untuk lihat post →
+                </span>
+              </div>
+            </div>
+          ) : null}
         </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Bookmark Section ─────────────────────────────────────────────────────────
+
+function BookmarkSection({
+  onNavigatePost,
+}: {
+  onNavigatePost: (id: string) => void;
+}) {
+  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
+  const [posts, setPosts] = useState<Record<string, BookmarkPostDetail>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchBookmarks = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/bookmark");
+        if (!res.ok) {
+          if (res.status === 401) throw new Error("Sesi telah berakhir, silakan login ulang.");
+          throw new Error("Gagal memuat bookmark.");
+        }
+        const data: BookmarksApiResponse = await res.json();
+        const items = data.data ?? [];
+        setBookmarks(items);
+
+        // Fetch post details secara paralel
+        if (items.length > 0) {
+          const postResults = await Promise.allSettled(
+            items.map((b) =>
+              fetch(`/api/posts/${b.post_id}`)
+                .then((r) => (r.ok ? r.json() : Promise.reject()))
+                .then((d) => ({ id: b.post_id, detail: d.data as BookmarkPostDetail }))
+            )
+          );
+          const postMap: Record<string, BookmarkPostDetail> = {};
+          postResults.forEach((result) => {
+            if (result.status === "fulfilled") {
+              postMap[result.value.id] = result.value.detail;
+            }
+          });
+          setPosts(postMap);
+        }
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Gagal memuat bookmark.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookmarks();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-3">
+        <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-brand-blue" />
+        <span className="text-xs text-zinc-400">Memuat bookmark…</span>
       </div>
+    );
+  }
 
-      {isEditing && (
-        <div className="p-5 bg-white dark:bg-zinc-950 rounded-2xl border border-brand-blue/30 shadow-md">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">
-            Edit Profil Detail Anda
-          </h2>
-          <form onSubmit={handleSave} className="space-y-4 text-left">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">Nama Pengguna</label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-blue"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">Lokasi Kerja</label>
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Cth: Kota Bandung, Indonesia"
-                  className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-blue"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">Tautan Web Portfolio</label>
-                <input
-                  type="url"
-                  value={websiteUrl}
-                  onChange={(e) => setWebsiteUrl(e.target.value)}
-                  placeholder="https://myportfolio.com"
-                  className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-blue"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">Tautan Akun GitHub</label>
-                <input
-                  type="url"
-                  value={githubUrl}
-                  onChange={(e) => setGithubUrl(e.target.value)}
-                  placeholder="https://github.com/myusername"
-                  className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-blue"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1 font-sans">Keahlian & Pengantar Bio Dirimu</label>
-              <textarea
-                rows={3}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="Tuliskan bio draf singkat..."
-                className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-blue"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="text-xs bg-brand-blue hover:bg-brand-blue-hover text-white px-3.5 py-2 rounded-lg font-semibold cursor-pointer"
-              >
-                Simpan Perubahan
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsEditing(false)}
-                className="text-xs border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 px-3.5 py-2 rounded-lg font-semibold cursor-pointer"
-              >
-                Batal
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xs text-center">
-          <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">Reputasi</div>
-          <div className="mt-1 text-2xl font-black text-brand-blue font-mono">
-            {reputation.toLocaleString()}
-          </div>
-          <div className="text-[10px] text-zinc-400 mt-1">92th percentile</div>
-        </div>
-
-        <div className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xs text-center flex flex-col justify-between">
-          <div className="text-xs font-semibold text-amber-500 uppercase tracking-wide flex justify-center items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-amber-500" />
-            <span>Medali Emas</span>
-          </div>
-          <div className="mt-1.5 text-2xl font-black text-zinc-800 dark:text-zinc-100 font-mono">
-            {badges.gold}
-          </div>
-          <div className="text-[9px] font-medium text-zinc-400 mt-1 uppercase tracking-wide">Solusi Top Kategori</div>
-        </div>
-
-        <div className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xs text-center flex flex-col justify-between">
-          <div className="text-xs font-semibold text-zinc-400 dark:text-slate-400 uppercase tracking-wide flex justify-center items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-zinc-400 dark:bg-slate-400" />
-            <span>Medali Perak</span>
-          </div>
-          <div className="mt-1.5 text-2xl font-black text-zinc-800 dark:text-zinc-100 font-mono">
-            {badges.silver}
-          </div>
-          <div className="text-[9px] font-medium text-zinc-400 mt-1 uppercase tracking-wide">Jawaban Mendukung</div>
-        </div>
-
-        <div className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xs text-center flex flex-col justify-between">
-          <div className="text-xs font-semibold text-amber-600 uppercase tracking-wide flex justify-center items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-amber-600" />
-            <span>Medali Perunggu</span>
-          </div>
-          <div className="mt-1.5 text-2xl font-black text-zinc-800 dark:text-zinc-100 font-mono">
-            {badges.bronze}
-          </div>
-          <div className="text-[9px] font-medium text-zinc-400 mt-1 uppercase tracking-wide">Keaktifan Komunitas</div>
-        </div>
+  if (error) {
+    return (
+      <div className="flex flex-col items-center py-10 gap-2">
+        <Bookmark className="h-8 w-8 text-red-300 dark:text-red-800" />
+        <p className="text-xs text-red-500 italic text-center">{error}</p>
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-3.5">
-          <div className="p-1 px-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between pb-2.5">
-            <h3 className="text-sm font-bold text-zinc-850 dark:text-zinc-100 flex items-center gap-1.5">
-              <FileText className="h-4 w-4 text-brand-blue" />
-              <span>Pertanyaan Anda ({userQuestions.length})</span>
-            </h3>
-            <span className="text-[10px] bg-zinc-150 dark:bg-zinc-850 text-zinc-500 dark:text-zinc-400 px-2.0 py-0.5 rounded-full font-mono">asked</span>
-          </div>
-          
-          <div className="space-y-2 mt-2">
-            {userQuestions.length > 0 ? (
-              userQuestions.map((q) => (
-                <div
-                  key={q.id}
-                  onClick={() => onQuestionClick(q.id)}
-                  className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-850 hover:border-brand-blue cursor-pointer transition-all duration-150 text-left space-y-1.5"
-                >
-                  <h4 className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white line-clamp-1 hover:text-brand-blue">
-                    {q.title}
+  if (bookmarks.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-12 gap-3">
+        <div className="p-4 rounded-2xl bg-zinc-100 dark:bg-zinc-900">
+          <Bookmark className="h-8 w-8 text-zinc-300 dark:text-zinc-600" />
+        </div>
+        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Belum ada bookmark.</p>
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">Simpan pertanyaan menarik dengan menekan ikon bookmark.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {bookmarks.map((bookmark) => {
+        const post = posts[bookmark.post_id];
+
+        return (
+          <div
+            key={bookmark.id}
+            onClick={() => post && onNavigatePost(post.id)}
+            className={`p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-all duration-150 space-y-2 text-left ${
+              post ? "hover:border-brand-blue cursor-pointer" : "opacity-60 cursor-default"
+            }`}
+          >
+            {post ? (
+              <>
+                {/* Header: title + status */}
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-white line-clamp-1 hover:text-brand-blue flex-1 flex items-center gap-1">
+                    {post.title}
+                    <ChevronRight className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </h4>
-                  <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono">
-                    <span className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/80 px-1.5 py-0.5 rounded font-bold text-brand-blue font-mono">
-                      {q.votes} votes
+                  <span
+                    className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                      post.is_answered
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : post.status === "open"
+                        ? "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400"
+                        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    }`}
+                  >
+                    {post.is_answered ? (
+                      <><CheckCircle2 className="h-2.5 w-2.5" /> Terjawab</>
+                    ) : post.status === "open" ? (
+                      <><CircleDot className="h-2.5 w-2.5" /> Terbuka</>
+                    ) : (
+                      "Ditutup"
+                    )}
+                  </span>
+                </div>
+
+                {/* Tags + category */}
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="text-[10px] px-1.5 py-0.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 rounded font-mono">
+                    {post.category?.name ?? "—"}
+                  </span>
+                  {post.tags?.map((t) => (
+                    <span
+                      key={t.id}
+                      style={{ borderColor: t.color, color: t.color }}
+                      className="text-[10px] px-1.5 py-0.5 border rounded font-mono font-semibold bg-white dark:bg-zinc-950"
+                    >
+                      {t.name}
                     </span>
-                    <span>{q.answers.length} jawaban • {q.views} views</span>
+                  ))}
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-brand-blue">↑{post.upvotes_count}</span>
+                    <span>{post.comments_count} komentar</span>
+                    <span>{post.view_count} views</span>
+                    <span className="text-rose-400 flex items-center gap-0.5">
+                      <Heart className="h-2.5 w-2.5" /> {post.likes_count}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-zinc-400">
+                    <Bookmark className="h-2.5 w-2.5 fill-current text-brand-blue" />
+                    <span>{formatDate(bookmark.created_at)}</span>
                   </div>
                 </div>
-              ))
+              </>
             ) : (
-              <p className="text-xs text-zinc-400 dark:text-zinc-505 italic text-center py-6 bg-zinc-50/50 dark:bg-zinc-950/20 rounded-xl border border-zinc-100 dark:border-zinc-900/50">
-                Belum menanyakan apapun di web ini.
-              </p>
+              /* fallback jika detail post gagal dimuat */
+              <div className="flex items-center gap-2 text-xs text-zinc-500">
+                <Bookmark className="h-4 w-4 text-zinc-400 shrink-0" />
+                <div>
+                  <p className="font-mono text-[11px] text-zinc-400">Post ID: {bookmark.post_id}</p>
+                  <p className="text-[10px] text-zinc-400 mt-0.5">
+                    Disimpan: {formatDate(bookmark.created_at)}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Credentials Section ──────────────────────────────────────────────────────
+
+function CredentialsSection({ user }: { user: UserDetail }) {
+  const role = primaryRole(user.roles);
+
+  return (
+    <div className="space-y-5">
+      {/* Identitas Akun */}
+      <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-3">
+        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+          <ShieldCheck className="h-3.5 w-3.5 text-brand-blue" />
+          Identitas Akun
+        </p>
+
+        {[
+          { icon: <FileText className="h-3.5 w-3.5" />, label: "ID Pengguna", value: user.id },
+          { icon: <Mail className="h-3.5 w-3.5" />, label: "Email", value: user.email },
+          { icon: <Star className="h-3.5 w-3.5" />, label: "Username", value: `@${user.username}` },
+        ].map(({ icon, label, value }) => (
+          <div key={label} className="flex items-start justify-between gap-3 text-xs py-1.5 border-b border-zinc-100 dark:border-zinc-800/60 last:border-0">
+            <span className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 shrink-0">
+              <span className="text-zinc-400">{icon}</span>
+              {label}
+            </span>
+            <span className="font-mono font-semibold text-zinc-900 dark:text-white text-right break-all">
+              {value}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Status & Keamanan */}
+      <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-3">
+        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+          <Shield className="h-3.5 w-3.5 text-brand-blue" />
+          Status & Keamanan
+        </p>
+
+        <div className="flex items-center justify-between text-xs py-1.5 border-b border-zinc-100 dark:border-zinc-800/60">
+          <span className="text-zinc-500 dark:text-zinc-400">Status Akun</span>
+          {user.is_banned ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full">
+              <Shield className="h-3 w-3" /> Dibanned
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded-full">
+              <CheckCircle2 className="h-3 w-3" /> Aktif
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between text-xs py-1.5 border-b border-zinc-100 dark:border-zinc-800/60">
+          <span className="text-zinc-500 dark:text-zinc-400">Role Utama</span>
+          <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${roleBadgeStyle(role)}`}>
+            {role}
+          </span>
+        </div>
+
+        <div className="flex items-start justify-between gap-3 text-xs py-1.5 border-b border-zinc-100 dark:border-zinc-800/60">
+          <span className="text-zinc-500 dark:text-zinc-400">Semua Role</span>
+          <div className="flex flex-wrap gap-1 justify-end">
+            {user.roles.length > 0 ? user.roles.map((r) => (
+              <span key={r.id} className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${roleBadgeStyle(r.name)}`}>
+                {r.name}
+              </span>
+            )) : (
+              <span className="text-zinc-400 italic">Tidak ada role</span>
             )}
           </div>
         </div>
 
-        <div className="space-y-3.5">
-          <div className="p-1 px-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between pb-2.5">
-            <h3 className="text-sm font-bold text-zinc-850 dark:text-zinc-100 flex items-center gap-1.5">
-              <Star className="h-4 w-4 text-brand-blue" />
-              <span>Tingkat Keaktifan & Skill</span>
-            </h3>
-            <span className="text-[10px] bg-zinc-150 dark:bg-zinc-850 text-zinc-500 dark:text-zinc-400 px-2.0 py-0.5 rounded-full font-mono font-medium">skills</span>
-          </div>
-
-          <div className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-850 space-y-3">
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400 text-left">
-                <span>Jawaban Diberikan:</span>
-                <span className="font-bold text-zinc-850 dark:text-white font-mono">{userAnswersCount} kali</span>
-              </div>
-              <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400 text-left">
-                <span>Pertanyaan Diterbitkan:</span>
-                <span className="font-bold text-zinc-850 dark:text-white font-mono">{userQuestions.length} kali</span>
-              </div>
-              <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400 text-left">
-                <span>Persentase Diterima (*Accepted*):</span>
-                <span className="font-bold text-zinc-850 dark:text-white font-mono">100%</span>
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-zinc-100 dark:border-zinc-900/60 text-left">
-              <span className="block text-[10px] uppercase font-bold text-zinc-455 mb-2 dark:text-zinc-550">Tag Terlaris di Profil Anda:</span>
-              <div className="flex flex-wrap gap-1.5">
-                <span className="text-[10px] px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 rounded font-mono font-semibold">react (3 posts)</span>
-                <span className="text-[10px] px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 rounded font-mono font-semibold">tailwindcss (2 posts)</span>
-                <span className="text-[10px] px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 rounded font-mono font-semibold">next.js (2 posts)</span>
-              </div>
-            </div>
-          </div>
+        <div className="flex items-center justify-between text-xs py-1.5 border-b border-zinc-100 dark:border-zinc-800/60">
+          <span className="text-zinc-500 dark:text-zinc-400">Level</span>
+          <span className="font-mono font-bold text-brand-blue">Lv. {user.level}</span>
         </div>
+
+        <div className="flex items-center justify-between text-xs py-1.5">
+          <span className="text-zinc-500 dark:text-zinc-400">Reputasi</span>
+          <span className="font-mono font-black text-brand-blue text-sm">{user.reputation_points.toLocaleString()} pts</span>
+        </div>
+      </div>
+
+      {/* Timestamps */}
+      <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-3">
+        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+          <Calendar className="h-3.5 w-3.5 text-brand-blue" />
+          Riwayat Akun
+        </p>
+        {[
+          { label: "Tanggal Daftar", value: formatDateFull(user.created_at) },
+          { label: "Terakhir Diperbarui", value: formatDateFull(user.updated_at) },
+        ].map(({ label, value }) => (
+          <div key={label} className="flex items-start justify-between gap-3 text-xs py-1.5 border-b border-zinc-100 dark:border-zinc-800/60 last:border-0">
+            <span className="text-zinc-500 dark:text-zinc-400 shrink-0">{label}</span>
+            <span className="font-mono font-semibold text-zinc-900 dark:text-white text-right">{value}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Statistik Sosial */}
+      <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-3">
+        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+          <Users className="h-3.5 w-3.5 text-brand-blue" />
+          Statistik Sosial
+        </p>
+        {[
+          { label: "Total Pertanyaan", value: user.posts_count },
+          { label: "Pengikut", value: user.followers_count },
+          { label: "Mengikuti", value: user.following_count },
+          { label: "Total Lencana", value: user.badges_count },
+        ].map(({ label, value }) => (
+          <div key={label} className="flex items-center justify-between text-xs py-1.5 border-b border-zinc-100 dark:border-zinc-800/60 last:border-0">
+            <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
+            <span className="font-mono font-bold text-zinc-900 dark:text-white">{value.toLocaleString()}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function MyProfilePage() {
+  const router = useRouter();
+  const { currentUser } = useApp();
+
+  const [data, setData] = useState<UserDetailResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>("posts");
+
+  // Redirect jika belum login
+  useEffect(() => {
+    if (currentUser === null && !loading) {
+      router.push("/login");
+    }
+  }, [currentUser, loading, router]);
+
+  // Fetch /api/me lalu /api/profile/{username}
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        // Step 1: dapatkan username dari /api/me
+        const meRes = await fetch("/api/me");
+        if (!meRes.ok) {
+          router.push("/login");
+          return;
+        }
+        const meData = await meRes.json();
+        const username = meData.user?.username;
+        if (!username) throw new Error("Username tidak ditemukan.");
+
+        // Step 2: fetch detail lengkap dari /api/profile/{username}
+        const profileRes = await fetch(`/api/profile/${encodeURIComponent(username)}`);
+        if (!profileRes.ok) throw new Error("Gagal memuat profil detail.");
+        const profileData: UserDetailResponse = await profileRes.json();
+        setData(profileData);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Terjadi kesalahan.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+        <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-brand-blue" />
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Memuat profil Anda…</p>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+        <p className="text-sm font-semibold text-red-500">
+          {error ?? "Gagal memuat profil."}
+        </p>
+        <button
+          onClick={() => router.push("/login")}
+          className="text-xs text-brand-blue hover:underline"
+        >
+          ← Kembali ke Login
+        </button>
+      </div>
+    );
+  }
+
+  const { user } = data;
+  const role = primaryRole(user.roles);
+  const src = avatarSrc(user.avatar_url);
+  const answeredPosts = user.posts.filter((p) => p.is_answered);
+  const openPosts = user.posts.filter(
+    (p) => p.status === "open" && !p.is_answered
+  );
+
+  const tabs: {
+    key: TabKey;
+    label: string;
+    icon: React.ReactNode;
+    count?: number;
+  }[] = [
+    {
+      key: "posts",
+      label: "Pertanyaan",
+      icon: <FileText className="h-3.5 w-3.5" />,
+      count: user.posts_count,
+    },
+    {
+      key: "activity",
+      label: "Aktivitas",
+      icon: <TrendingUp className="h-3.5 w-3.5" />,
+    },
+    {
+      key: "likes",
+      label: "Disukai",
+      icon: <Heart className="h-3.5 w-3.5" />,
+    },
+    {
+      key: "bookmarks",
+      label: "Bookmark",
+      icon: <Bookmark className="h-3.5 w-3.5" />,
+    },
+    {
+      key: "credentials",
+      label: "Kredensial",
+      icon: <ShieldCheck className="h-3.5 w-3.5" />,
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      {/* ── Hero Card ─────────────────────────────────────────────────────── */}
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+        {/* Banner dengan gradient + "Profil Saya" label */}
+        <div className="h-28 bg-gradient-to-r from-brand-blue to-sky-500 relative flex items-end px-5 pb-3">
+          <span className="text-white/80 text-xs font-semibold tracking-widest uppercase select-none">
+            Profil Saya
+          </span>
+        </div>
+
+        <div className="px-5 pb-5 relative">
+          {/* Avatar + Edit button row */}
+          <div className="-mt-12 mb-4 flex items-end justify-between gap-4">
+            {/* Avatar */}
+            <div className="shrink-0">
+              {src ? (
+                <img
+                  src={src}
+                  alt={user.username}
+                  referrerPolicy="no-referrer"
+                  className="h-20 w-20 rounded-xl object-cover border-4 border-white dark:border-zinc-950 shadow-md bg-zinc-100"
+                />
+              ) : (
+                <div className="h-20 w-20 rounded-xl bg-brand-blue text-white flex items-center justify-center font-black text-2xl shadow-inner uppercase border-4 border-white dark:border-zinc-950 select-none">
+                  {user.username.charAt(0)}
+                </div>
+              )}
+            </div>
+
+            {/* Edit Profile Button */}
+            <div className="pt-17">
+              <button
+                id="btn-edit-profile-toggle"
+                onClick={() => router.push("/profile/edit")}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 transition-all cursor-pointer"
+              >
+                <Edit3 className="h-3 w-3" />
+                Edit Profil
+              </button>
+            </div>
+          </div>
+
+          {/* Name + role badge */}
+          <div className="mb-4">
+            <div className="flex flex-wrap items-center gap-2 mb-0.5">
+              <h1 className="text-lg font-bold text-zinc-900 dark:text-white">
+                {user.username}
+              </h1>
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${roleBadgeStyle(role)}`}
+              >
+                {role}
+              </span>
+              {user.is_banned ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 inline-flex items-center gap-1">
+                  <Shield className="h-2.5 w-2.5" />
+                  Dibanned
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs text-zinc-400 font-mono">@{user.username}</p>
+            <p className="text-xs text-zinc-400 font-mono">{user.email}</p>
+            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 flex items-center gap-1 mt-0.5">
+              <Calendar className="h-3 w-3" />
+              Bergabung {formatDateShort(user.created_at)}
+            </p>
+          </div>
+
+          {/* Bio + social stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+            {/* Social stats */}
+            <div className="flex flex-row sm:flex-col gap-3 sm:gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+              <div className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                <span>
+                  <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">
+                    {user.followers_count}
+                  </strong>{" "}
+                  pengikut
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <UserCheck className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                <span>
+                  <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">
+                    {user.following_count}
+                  </strong>{" "}
+                  mengikuti
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Award className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                <span>
+                  <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">
+                    {user.badges_count}
+                  </strong>{" "}
+                  lencana
+                </span>
+              </div>
+            </div>
+
+            {/* Bio */}
+            <div className="sm:col-span-2">
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">
+                Bio
+              </p>
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                {user.bio || (
+                  <span className="italic text-zinc-400">
+                    Belum ada bio ditulis.
+                  </span>
+                )}
+              </p>
+
+              {/* Badges chips */}
+              {user.badges.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {user.badges.map((b) => (
+                    <span
+                      key={b.id}
+                      className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold border"
+                      style={{
+                        borderColor: tierColor(b.tier),
+                        color: tierColor(b.tier),
+                        backgroundColor: `${tierColor(b.tier)}18`,
+                      }}
+                    >
+                      <Award className="h-2.5 w-2.5" />
+                      {b.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Quick stats strip ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          {
+            label: "Reputasi",
+            value: user.reputation_points,
+            sub: `Level ${user.level}`,
+          },
+          { label: "Total Post", value: user.posts_count, sub: "pertanyaan" },
+          { label: "Lencana", value: user.badges_count, sub: "badge" },
+        ].map(({ label, value, sub }) => (
+          <div
+            key={label}
+            className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 text-center"
+          >
+            <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+              {label}
+            </div>
+            <div className="text-xl font-black text-brand-blue font-mono mt-0.5">
+              {value.toLocaleString()}
+            </div>
+            <div className="text-[10px] text-zinc-400 mt-0.5">{sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Tab nav ───────────────────────────────────────────────────────── */}
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+        {/* Tab header */}
+        <div className="flex border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+                activeTab === tab.key
+                  ? "border-brand-blue text-brand-blue"
+                  : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+              {tab.count !== undefined && (
+                <span className="ml-0.5 font-mono text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded-full">
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div className="p-4">
+          {/* ── Posts tab ───────────────────────────────────────────────── */}
+          {activeTab === "posts" && (
+            <div className="space-y-2">
+              {user.posts.length > 0 ? (
+                user.posts.map((post) => (
+                  <div
+                    key={post.id}
+                    onClick={() => router.push(`/questions/${post.id}`)}
+                    className="p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-brand-blue cursor-pointer transition-all duration-150 space-y-2 text-left"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-white line-clamp-1 hover:text-brand-blue flex-1">
+                        {post.title}
+                      </h4>
+                      <PostStatusBadge post={post} />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="text-[10px] px-1.5 py-0.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 rounded font-mono">
+                        {post.category.name}
+                      </span>
+                      {post.tags.map((t) => (
+                        <span
+                          key={t.id}
+                          style={{ borderColor: t.color, color: t.color }}
+                          className="text-[10px] px-1.5 py-0.5 border rounded font-mono font-semibold bg-white dark:bg-zinc-950"
+                        >
+                          {t.name}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-brand-blue">
+                          ↑{post.upvotes_count}
+                        </span>
+                        <span>{post.comments_count} komentar</span>
+                        <span>{post.view_count} views</span>
+                      </div>
+                      <span>{formatDate(post.created_at)}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center py-10 gap-2">
+                  <FileText className="h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+                  <p className="text-xs text-zinc-400 italic">
+                    Belum ada pertanyaan.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Activity tab ────────────────────────────────────────────── */}
+          {activeTab === "activity" && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                {[
+                  {
+                    label: "Total pertanyaan ditulis",
+                    value: user.posts_count,
+                  },
+                  { label: "Post terjawab", value: answeredPosts.length },
+                  { label: "Post masih terbuka", value: openPosts.length },
+                  { label: "Pengikut", value: user.followers_count },
+                  { label: "Mengikuti", value: user.following_count },
+                ].map(({ label, value }) => (
+                  <div
+                    key={label}
+                    className="flex justify-between items-center text-xs text-zinc-600 dark:text-zinc-400 py-1.5 border-b border-zinc-100 dark:border-zinc-800/60 last:border-0"
+                  >
+                    <span>{label}</span>
+                    <span className="font-bold text-zinc-900 dark:text-white font-mono">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {user.posts_count > 0 && (
+                <div className="pt-2">
+                  <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
+                    <span>Accept rate</span>
+                    <span className="text-brand-blue font-mono">
+                      {Math.round(
+                        (answeredPosts.length / user.posts_count) * 100
+                      )}
+                      %
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-brand-blue transition-all"
+                      style={{
+                        width: `${Math.round(
+                          (answeredPosts.length / user.posts_count) * 100
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">
+                  Lencana ({user.badges_count})
+                </p>
+                <BadgesSection badges={user.badges} count={user.badges_count} />
+              </div>
+            </div>
+          )}
+
+          {/* ── Likes tab ───────────────────────────────────────────────── */}
+          {activeTab === "likes" && (
+            <LikesSection
+              username={user.username}
+              onNavigatePost={(id) => router.push(`/questions/${id}`)}
+            />
+          )}
+
+          {/* ── Bookmarks tab ────────────────────────────────────────────── */}
+          {activeTab === "bookmarks" && (
+            <BookmarkSection
+              onNavigatePost={(id) => router.push(`/questions/${id}`)}
+            />
+          )}
+
+          {/* ── Credentials tab ─────────────────────────────────────────── */}
+          {activeTab === "credentials" && (
+            <CredentialsSection user={user} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
