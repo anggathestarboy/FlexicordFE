@@ -1,314 +1,141 @@
 "use client";
 
-import { Badge, Post, Role, UserDetail, UserDetailResponse, Comment } from "@/app/api/profile/[username]/ProfileType";
-import { Like, LikesResponse, LikeTargetType } from "@/app/api/likes-user/[username]/LikesUserType";
-import { Heart, MessageSquare, FileText, Clock, Filter, Inbox } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import {
+  Award,
+  Calendar,
+  FileText,
+  Users,
+  UserCheck,
+  Shield,
+  CheckCircle2,
+  CircleDot,
+  TrendingUp,
+  Heart,
+  MessageSquare,
+  ChevronRight,
+} from "lucide-react";
+import { useRouter, useParams } from "next/navigation";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-// ─── Mock fetch (ganti dengan fetch("/api/profile/[username]") di production) ───
-const MOCK: UserDetailResponse = {
-  message: "Success get user detail",
-  user: {
-    id: "33119eac-b64e-40bf-a8b3-81b5a4cd8ddf",
-    username: "anggaraa",
-    email: "anggara@gmail.com",
-    avatar_url: "avatars/F9EoDaAZHYyYrqD1xjStHmoGrADs448RP9Z6MKeA.jpg",
-    bio: "glory glory man utd @zahra",
-    reputation_points: 19,
-    level: 2,
-    is_banned: 0,
-    created_at: "2026-06-03T03:39:06.000000Z",
-    updated_at: "2026-06-08T20:10:38.000000Z",
-    posts_count: 39,
-    followers_count: 2,
-    following_count: 1,
-    badges_count: 3,
-    roles: [
-      {
-        id: "15a730e3",
-        name: "user",
-        permissions: "null",
-        created_at: "2026-06-03T03:38:52.000000Z",
-        pivot: { user_id: "33119eac", role_id: "15a730e3" },
-      },
-      {
-        id: "8f0a0807",
-        name: "admin",
-        permissions: '{"all": true}',
-        created_at: "2026-06-03T03:38:52.000000Z",
-        pivot: { user_id: "33119eac", role_id: "8f0a0807" },
-      },
-    ],
-    badges: [
-      {
-        id: "af7575bd",
-        name: "Expert",
-        description: "Mengumpulkan 5.000 poin reputasi.",
-        icon_url: null,
-        tier: "gold",
-        condition_type: "reputation_points",
-        condition_value: 1,
-        pivot: {
-          user_id: "33119eac",
-          badge_id: "af7575bd",
-          created_at: "2026-06-08T20:10:38.000000Z",
-          updated_at: "2026-06-08T20:10:38.000000Z",
-        },
-      },
-      {
-        id: "aa3d1cb7",
-        name: "Contributor",
-        description: "Telah membuat 10 postingan.",
-        icon_url: null,
-        tier: "bronze",
-        condition_type: "posts_count",
-        condition_value: 10,
-        pivot: {
-          user_id: "33119eac",
-          badge_id: "aa3d1cb7",
-          created_at: "2026-06-07T15:39:02.000000Z",
-          updated_at: "2026-06-07T15:39:02.000000Z",
-        },
-      },
-      {
-        id: "743283a9",
-        name: "Newcomer",
-        description: "Berhasil membuat postingan pertama.",
-        icon_url: null,
-        tier: "bronze",
-        condition_type: "posts_count",
-        condition_value: 32,
-        pivot: {
-          user_id: "33119eac",
-          badge_id: "743283a9",
-          created_at: "2026-06-07T15:39:02.000000Z",
-          updated_at: "2026-06-07T15:39:02.000000Z",
-        },
-      },
-    ],
-    posts: [
-      {
-        id: "20c2029f",
-        user_id: "33119eac",
-        category_id: "709bb650",
-        title: "Cara Belajar Laravel untuk Pemula",
-        body: "Laravel adalah framework PHP yang sangat populer dan mudah digunakan.",
-        status: "open",
-        view_count: 15,
-        vote_score: 2,
-        is_answered: 0,
-        accepted_answer_id: null,
-        created_at: "2026-06-03T17:12:45.000000Z",
-        updated_at: "2026-06-05T14:35:17.000000Z",
-        likes_count: 1,
-        bookmarks_count: 1,
-        comments_count: 1,
-        upvotes_count: 2,
-        downvotes_count: 1,
-        votes_count: 1,
-        user_has_liked: false,
-        user_has_bookmarked: false,
-        tags: [{ id: "e8ebde92", name: "Hot", slug: "hot", color: "red", usage_count: 21, created_at: "2026-06-04 06:57:32", pivot: { post_id: "20c2029f", tag_id: "e8ebde92" } }],
-        category: { id: "709bb650", name: "Tech", slug: "tech", description: null, parent_id: null, created_at: "2026-06-04 05:50:12" },
-        user: { id: "33119eac", username: "anggaraa", email: "anggara@gmail.com", avatar_url: null, bio: null, reputation_points: 19, level: 2, is_banned: 0, created_at: "2026-06-03T03:39:06.000000Z", updated_at: "2026-06-08T20:10:38.000000Z" },
-      },
-      {
-        id: "ce6d8b25",
-        user_id: "33119eac",
-        category_id: "169508a8",
-        title: "Cara Belajar React untuk Pemula",
-        body: "React adalah framework Javascript yang sangat populer dan mudah digunakan.",
-        status: "open",
-        view_count: 8,
-        vote_score: -3,
-        is_answered: 0,
-        accepted_answer_id: null,
-        created_at: "2026-06-03T17:23:29.000000Z",
-        updated_at: "2026-06-06T19:30:10.000000Z",
-        likes_count: 1,
-        bookmarks_count: 0,
-        comments_count: 0,
-        upvotes_count: 0,
-        downvotes_count: 3,
-        votes_count: -3,
-        user_has_liked: false,
-        user_has_bookmarked: false,
-        tags: [],
-        category: { id: "169508a8", name: "Sekawan Media", slug: "sekawan-media", description: null, parent_id: "709bb650", created_at: "2026-06-04 05:51:41" },
-        user: { id: "33119eac", username: "anggaraa", email: "anggara@gmail.com", avatar_url: null, bio: null, reputation_points: 19, level: 2, is_banned: 0, created_at: "2026-06-03T03:39:06.000000Z", updated_at: "2026-06-08T20:10:38.000000Z" },
-      },
-    ],
-  },
-  is_following: false,
-};
+interface Role {
+  id: string;
+  name: string;
+  permissions: string | null;
+}
 
-// Mock data untuk likes
-const MOCK_LIKES: LikesResponse = {
-  likes: [
-    {
-      id: "0e5bce79-4205-4ad7-8ba1-6b44e3e38273",
-      user_id: "33119eac-b64e-40bf-a8b3-81b5a4cd8ddf",
-      target_id: "0ef45316-42a1-4f6a-a080-76637765e7d4",
-      target_type: "comment",
-      created_at: "2026-06-05 02:09:33",
-      comment_detail: {
-        id: "0ef45316-42a1-4f6a-a080-76637765e7d4",
-        post_id: "20c2029f",
-        user_id: "other-user-id",
-        body: "Terima kasih tutorialnya sangat membantu!",
-        created_at: "2026-06-04T10:00:00.000000Z",
-        user: {
-          id: "other-user-id",
-          username: "john_doe",
-          avatar_url: "https://randomuser.me/api/portraits/men/2.jpg"
-        },
-        post: {
-          id: "20c2029f",
-          title: "Cara Belajar Laravel untuk Pemula"
-        }
-      }
-    },
-    {
-      id: "11124e06-42f4-48ae-979e-2452892ffed4",
-      user_id: "33119eac-b64e-40bf-a8b3-81b5a4cd8ddf",
-      target_id: "1c28c7c5-c0d9-45c4-b966-60af97b03eea",
-      target_type: "post",
-      created_at: "2026-06-07 09:18:29",
-      post_detail: {
-        id: "1c28c7c5-c0d9-45c4-b966-60af97b03eea",
-        title: "Tips Optimalisasi Database MySQL",
-        body: "Berikut adalah tips untuk mengoptimalkan performa database MySQL...",
-        category: { name: "Database" },
-        created_at: "2026-06-06T08:00:00.000000Z",
-        user: {
-          id: "user123",
-          username: "database_expert",
-          avatar_url: null
-        }
-      }
-    },
-    {
-      id: "eff3403c-d5f6-430f-a339-36cca69ebc8a",
-      user_id: "33119eac-b64e-40bf-a8b3-81b5a4cd8ddf",
-      target_id: "20c2029f-27ca-4610-b46f-3405f6ef2dc0",
-      target_type: "post",
-      created_at: "2026-06-05 02:24:31",
-      post_detail: {
-        id: "20c2029f-27ca-4610-b46f-3405f6ef2dc0",
-        title: "Cara Belajar Laravel untuk Pemula",
-        body: "Laravel adalah framework PHP yang sangat populer dan mudah digunakan...",
-        category: { name: "Tech" },
-        created_at: "2026-06-03T17:12:45.000000Z",
-        user: {
-          id: "33119eac-b64e-40bf-a8b3-81b5a4cd8ddf",
-          username: "anggaraa",
-          avatar_url: null
-        }
-      }
-    },
-    {
-      id: "fb9e8286-fa17-4e31-8a1f-36469613153c",
-      user_id: "33119eac-b64e-40bf-a8b3-81b5a4cd8ddf",
-      target_id: "4b122d63-e6e8-4f14-9bb0-861848dca24d",
-      target_type: "comment",
-      created_at: "2026-06-07 09:39:35",
-      comment_detail: {
-        id: "4b122d63-e6e8-4f14-9bb0-861848dca24d",
-        post_id: "ce6d8b25",
-        user_id: "another-user",
-        body: "Penjelasan Reactnya sangat jelas dan mudah dipahami!",
-        created_at: "2026-06-07T07:00:00.000000Z",
-        user: {
-          id: "another-user",
-          username: "react_enthusiast",
-          avatar_url: "https://randomuser.me/api/portraits/women/1.jpg"
-        },
-        post: {
-          id: "ce6d8b25",
-          title: "Cara Belajar React untuk Pemula"
-        }
-      }
-    },
-  ],
-};
+interface Badge {
+  id: string;
+  name: string;
+  description?: string;
+  image_url?: string | null;
+  color?: string;
+}
 
-// Tambahkan MOCK untuk user lain
-const MOCK_OTHER_USER: UserDetailResponse = {
-  message: "Success get user detail",
-  user: {
-    id: "other-user-id",
-    username: "johndoe",
-    email: "john@example.com",
-    avatar_url: "https://randomuser.me/api/portraits/men/1.jpg",
-    bio: "Software developer from Jakarta",
-    reputation_points: 45,
-    level: 3,
-    is_banned: 0,
-    created_at: "2025-01-15T03:39:06.000000Z",
-    updated_at: "2026-06-08T20:10:38.000000Z",
-    posts_count: 25,
-    followers_count: 15,
-    following_count: 8,
-    badges_count: 5,
-    roles: [
-      {
-        id: "15a730e3",
-        name: "user",
-        permissions: "null",
-        created_at: "2025-01-15T03:38:52.000000Z",
-        pivot: { user_id: "other-user-id", role_id: "15a730e3" },
-      },
-    ],
-    badges: [
-      {
-        id: "aa3d1cb7",
-        name: "Contributor",
-        description: "Telah membuat 10 postingan.",
-        icon_url: null,
-        tier: "bronze",
-        condition_type: "posts_count",
-        condition_value: 10,
-        pivot: {
-          user_id: "other-user-id",
-          badge_id: "aa3d1cb7",
-          created_at: "2025-02-07T15:39:02.000000Z",
-          updated_at: "2025-02-07T15:39:02.000000Z",
-        },
-      },
-    ],
-    posts: [
-      {
-        id: "post-other-1",
-        user_id: "other-user-id",
-        category_id: "709bb650",
-        title: "Tips Belajar Programming untuk Pemula",
-        body: "Berikut adalah tips-tips yang bisa membantu pemula dalam belajar programming...",
-        status: "open",
-        view_count: 120,
-        vote_score: 15,
-        is_answered: 1,
-        accepted_answer_id: null,
-        created_at: "2025-01-20T10:00:00.000000Z",
-        updated_at: "2025-01-20T10:00:00.000000Z",
-        likes_count: 10,
-        bookmarks_count: 5,
-        comments_count: 3,
-        upvotes_count: 15,
-        downvotes_count: 0,
-        votes_count: 15,
-        user_has_liked: false,
-        user_has_bookmarked: false,
-        tags: [{ id: "tag1", name: "Programming", slug: "programming", color: "blue", usage_count: 50, created_at: "2025-01-20 10:00:00", pivot: { post_id: "post-other-1", tag_id: "tag1" } }],
-        category: { id: "709bb650", name: "Tech", slug: "tech", description: null, parent_id: null, created_at: "2025-01-20 10:00:00" },
-        user: { id: "other-user-id", username: "johndoe", email: "john@example.com", avatar_url: "https://randomuser.me/api/portraits/men/1.jpg", bio: "Software developer", reputation_points: 45, level: 3, is_banned: 0, created_at: "2025-01-15T03:39:06.000000Z", updated_at: "2025-01-15T03:39:06.000000Z" },
-      },
-    ],
-  },
-  is_following: false,
-};
+interface Tag {
+  id: string;
+  name: string;
+  slug: string;
+  color: string;
+}
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  parent_id: string | null;
+}
+
+interface Post {
+  id: string;
+  title: string;
+  body: string;
+  status: "open" | "closed";
+  view_count: number;
+  vote_score: number;
+  is_answered: 0 | 1;
+  comments_count: number;
+  upvotes_count: number;
+  downvotes_count: number;
+  created_at: string;
+  tags: Tag[];
+  category: Category;
+}
+
+interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  avatar_url: string | null;
+  bio: string | null;
+  reputation_points: number;
+  level: number;
+  is_banned: 0 | 1;
+  created_at: string;
+  posts_count: number;
+  followers_count: number;
+  following_count: number;
+  badges_count: number;
+  roles: Role[];
+  badges: Badge[];
+  posts: Post[];
+}
+
+interface ApiResponse {
+  message: string;
+  user: UserProfile;
+  is_following: boolean;
+}
+
+// ─── Likes types ──────────────────────────────────────────────────────────────
+
+interface LikeComment {
+  id: string;
+  post_id: string;
+  body: string;
+  vote_score: number;
+  is_accepted: 0 | 1;
+  created_at: string;
+}
+
+interface LikePost {
+  id: string;
+  title: string;
+  body: string;
+  status: "open" | "closed";
+  view_count: number;
+  vote_score: number;
+  is_answered: 0 | 1;
+  created_at: string;
+}
+
+interface LikeItem {
+  id: string;
+  user_id: string;
+  target_id: string;
+  target_type: "post" | "comment";
+  created_at: string;
+  post: LikePost | null;
+  comment: LikeComment | null;
+}
+
+interface LikesApiResponse {
+  likes: LikeItem[];
+}
+
+// ─── Tab type ─────────────────────────────────────────────────────────────────
+
+type TabKey = "posts" | "activity" | "likes";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const STORAGE_BASE = "https://pegaduanmasyarakat.alwaysdata.net/storage/";
+
+function avatarSrc(url: string | null): string | null {
+  if (!url) return null;
+  return url.startsWith("http") ? url : `${STORAGE_BASE}${url}`;
+}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("id-ID", {
@@ -318,830 +145,580 @@ function formatDate(iso: string): string {
   });
 }
 
-function formatDateTime(raw: string): string {
-  return new Date(raw).toLocaleDateString("id-ID", {
-    day: "numeric",
+function formatDateShort(iso: string): string {
+  return new Date(iso).toLocaleDateString("id-ID", {
     month: "short",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
   });
 }
 
-function getInitials(username: string): string {
-  return username.slice(0, 2).toUpperCase();
+function primaryRole(roles: Role[]): string {
+  const priority = ["admin", "moderator", "user"];
+  for (const p of priority) {
+    const found = roles.find((r) => r.name === p);
+    if (found) return found.name;
+  }
+  return roles[0]?.name ?? "member";
 }
 
-function levelLabel(level: number): string {
-  const labels: Record<number, string> = { 1: "Newbie", 2: "Member", 3: "Regular", 4: "Veteran", 5: "Legend" };
-  return labels[level] ?? `Level ${level}`;
+function roleBadgeStyle(role: string): string {
+  switch (role) {
+    case "admin":
+      return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
+    case "moderator":
+      return "bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400";
+    default:
+      return "bg-brand-blue/10 text-brand-blue dark:bg-brand-blue/20";
+  }
 }
-
-const TIER_CONFIG: Record<string, { bg: string; text: string; border: string; icon: string }> = {
-  gold:     { bg: "#FEF3C7", text: "#92400E", border: "#F59E0B", icon: "🥇" },
-  silver:   { bg: "#F1F5F9", text: "#475569", border: "#94A3B8", icon: "🥈" },
-  bronze:   { bg: "#FDF4EF", text: "#9A3412", border: "#C2765A", icon: "🥉" },
-  platinum: { bg: "#EFF6FF", text: "#1E40AF", border: "#60A5FA", icon: "💎" },
-};
-
-const ROLE_CONFIG: Record<string, { bg: string; text: string }> = {
-  admin:     { bg: "#EDE9FE", text: "#5B21B6" },
-  moderator: { bg: "#DCFCE7", text: "#166534" },
-  user:      { bg: "#F1F5F9", text: "#475569" },
-};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function AvatarBlock({ user }: { user: UserDetail }) {
-  const getAvatarUrl = () => {
-    if (!user.avatar_url || user.avatar_url === "string") {
-      return null;
-    }
-    
-    if (user.avatar_url.startsWith("avatars/")) {
-      return `https://pegaduanmasyarakat.alwaysdata.net/storage/${user.avatar_url}`;
-    }
-    
-    if (user.avatar_url.startsWith("http")) {
-      return user.avatar_url;
-    }
-    
-    return null;
-  };
-
-  const avatarUrl = getAvatarUrl();
-
+function PostStatusBadge({ post }: { post: Post | LikePost }) {
+  if (post.is_answered) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded">
+        <CheckCircle2 className="h-2.5 w-2.5" />
+        Terjawab
+      </span>
+    );
+  }
+  if (post.status === "open") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400 px-1.5 py-0.5 rounded">
+        <CircleDot className="h-2.5 w-2.5" />
+        Terbuka
+      </span>
+    );
+  }
   return (
-    <div style={{ position: "relative", width: 88, height: 88, flexShrink: 0 }}>
-      {avatarUrl ? (
-        <img
-          src={avatarUrl}
-          alt={user.username}
-          style={{ width: 88, height: 88, borderRadius: "50%", objectFit: "cover", border: "3px solid #E2E8F0" }}
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-            if (e.currentTarget.nextSibling) {
-              (e.currentTarget.nextSibling as HTMLElement).style.display = 'flex';
-            }
-          }}
-        />
-      ) : null}
-      <div
-        style={{
-          width: 88, height: 88, borderRadius: "50%",
-          background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)",
-          display: avatarUrl ? 'none' : 'flex',
-          alignItems: "center", justifyContent: "center",
-          fontSize: 28, fontWeight: 700, color: "#fff",
-          border: "3px solid #E2E8F0", letterSpacing: 1,
-        }}
-      >
-        {getInitials(user.username)}
-      </div>
-      {user.is_banned === 1 && (
-        <span
-          title="Akun dibanned"
-          style={{
-            position: "absolute", bottom: 2, right: 2,
-            background: "#EF4444", borderRadius: "50%",
-            width: 20, height: 20, display: "flex",
-            alignItems: "center", justifyContent: "center",
-            fontSize: 11, border: "2px solid #fff",
-          }}
-        >🚫</span>
-      )}
-    </div>
-  );
-}
-
-function StatPill({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div style={{ textAlign: "center", minWidth: 64 }}>
-      <div style={{ fontSize: 20, fontWeight: 700, color: "#1E293B", lineHeight: 1.1 }}>{value}</div>
-      <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
-    </div>
-  );
-}
-
-function RoleBadge({ role }: { role: Role }) {
-  const cfg = ROLE_CONFIG[role.name] ?? { bg: "#F1F5F9", text: "#475569" };
-  return (
-    <span style={{
-      padding: "2px 10px", borderRadius: 20,
-      background: cfg.bg, color: cfg.text,
-      fontSize: 12, fontWeight: 600, textTransform: "capitalize",
-    }}>
-      {role.name}
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 px-1.5 py-0.5 rounded">
+      Ditutup
     </span>
   );
 }
 
-function BadgeCard({ badge }: { badge: Badge }) {
-  const cfg = TIER_CONFIG[badge.tier] ?? TIER_CONFIG.bronze;
-  return (
-    <div style={{
-      border: `1.5px solid ${cfg.border}`,
-      background: cfg.bg,
-      borderRadius: 10,
-      padding: "10px 14px",
-      display: "flex", alignItems: "flex-start", gap: 10,
-      minWidth: 0,
-    }}>
-      <span style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}>{cfg.icon}</span>
-      <div>
-        <div style={{ fontWeight: 700, fontSize: 13, color: cfg.text }}>{badge.name}</div>
-        <div style={{ fontSize: 11, color: "#64748B", marginTop: 2, lineHeight: 1.4 }}>{badge.description}</div>
+// ─── Badges Section ───────────────────────────────────────────────────────────
+
+function BadgesSection({ badges, count }: { badges: Badge[]; count: number }) {
+  if (count === 0 || badges.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 gap-2">
+        <Award className="h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">
+          Belum ada lencana diraih.
+        </p>
       </div>
-    </div>
-  );
-}
-
-// PostCard component
-function PostCard({ 
-  post, 
-  currentUserId, 
-  onDelete 
-}: { 
-  post: Post; 
-  currentUserId?: string;
-  onDelete?: (postId: string) => void;
-}) {
-  const score = post.votes_count;
-  const scoreColor = score > 0 ? "#16A34A" : score < 0 ? "#DC2626" : "#94A3B8";
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  
-  const isOwnPost = currentUserId && post.user_id === currentUserId;
-
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      onDelete?.(post.id);
-    } catch (error) {
-      console.error("Gagal menghapus postingan:", error);
-      alert("Gagal menghapus postingan. Silakan coba lagi.");
-    } finally {
-      setIsDeleting(false);
-      setShowConfirm(false);
-    }
-  };
+    );
+  }
 
   return (
-    <>
-      <div style={{
-        borderRadius: 10,
-        border: "1px solid #E2E8F0",
-        background: "#FAFAFA",
-        padding: "14px 16px",
-        display: "flex", gap: 14, alignItems: "flex-start",
-        transition: "box-shadow .15s",
-        position: "relative",
-      }}
-        onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,.08)")}
-        onMouseLeave={e => (e.currentTarget.style.boxShadow = "none")}
-      >
-        <div style={{
-          flexShrink: 0, width: 40, height: 40, borderRadius: 8,
-          background: "#F1F5F9", display: "flex", alignItems: "center",
-          justifyContent: "center", fontWeight: 700, fontSize: 15, color: scoreColor,
-        }}>
-          {score > 0 ? `+${score}` : score}
-        </div>
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, color: "#1E293B", marginBottom: 4, lineHeight: 1.4 }}>
-            {post.title}
-            {post.is_answered === 1 && (
-              <span style={{ marginLeft: 8, background: "#DCFCE7", color: "#166534", fontSize: 11, fontWeight: 600, padding: "1px 8px", borderRadius: 20 }}>
-                ✓ Terjawab
-              </span>
+    <div className="flex flex-wrap gap-3 pt-1">
+      {badges.map((b) => (
+        <div
+          key={b.id}
+          className="flex items-center gap-2 px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl"
+        >
+          {b.image_url ? (
+            <img
+              src={avatarSrc(b.image_url) ?? ""}
+              alt={b.name}
+              className="h-6 w-6 rounded object-cover"
+            />
+          ) : (
+            <Award
+              className="h-5 w-5 shrink-0"
+              style={{ color: b.color ?? "#6366f1" }}
+            />
+          )}
+          <div className="text-left">
+            <p className="text-xs font-bold text-zinc-800 dark:text-zinc-100 leading-none">
+              {b.name}
+            </p>
+            {b.description && (
+              <p className="text-[10px] text-zinc-400 mt-0.5">{b.description}</p>
             )}
           </div>
-
-          <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.5, marginBottom: 8,
-            overflow: "hidden", display: "-webkit-box",
-            WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>
-            {post.body}
-          </div>
-
-          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{
-              fontSize: 11, padding: "2px 8px", borderRadius: 20,
-              background: "#EEF2FF", color: "#4338CA", fontWeight: 500,
-            }}>
-              {post.category.name}
-            </span>
-
-            {post.tags.map(tag => (
-              <span key={tag.id} style={{
-                fontSize: 11, padding: "2px 8px", borderRadius: 20,
-                background: "#FEE2E2", color: "#991B1B", fontWeight: 500,
-              }}>
-                {tag.name}
-              </span>
-            ))}
-
-            <span style={{ marginLeft: "auto", fontSize: 11, color: "#94A3B8" }}>
-              {formatDate(post.created_at)}
-            </span>
-          </div>
-
-          <div style={{ display: "flex", gap: 14, marginTop: 8 }}>
-            {[
-              { icon: "👁", val: post.view_count, label: "views" },
-              { icon: "💬", val: post.comments_count, label: "komentar" },
-              { icon: "❤️", val: post.likes_count, label: "suka" },
-              { icon: "🔖", val: post.bookmarks_count, label: "simpan" },
-            ].map(({ icon, val, label }) => (
-              <span key={label} style={{ fontSize: 11, color: "#94A3B8", display: "flex", alignItems: "center", gap: 3 }}>
-                {icon} {val}
-              </span>
-            ))}
-          </div>
         </div>
-
-        {isOwnPost && (
-          <button
-            onClick={() => setShowConfirm(true)}
-            disabled={isDeleting}
-            style={{
-              position: "absolute",
-              top: 12,
-              right: 12,
-              background: "#FEE2E2",
-              border: "none",
-              borderRadius: 6,
-              padding: "4px 8px",
-              cursor: isDeleting ? "not-allowed" : "pointer",
-              fontSize: 12,
-              color: "#DC2626",
-              fontWeight: 500,
-              opacity: isDeleting ? 0.5 : 0.7,
-              transition: "opacity 0.15s",
-            }}
-          >
-            {isDeleting ? "Menghapus..." : "🗑️ Hapus"}
-          </button>
-        )}
-      </div>
-
-      {showConfirm && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "rgba(0,0,0,0.5)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1000,
-        }} onClick={() => setShowConfirm(false)}>
-          <div style={{
-            background: "#fff",
-            borderRadius: 12,
-            padding: 24,
-            maxWidth: 400,
-            width: "90%",
-            textAlign: "center",
-          }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: 18, fontWeight: 600 }}>Hapus Postingan?</h3>
-            <p style={{ margin: "0 0 20px 0", color: "#64748B", fontSize: 14 }}>
-              Apakah Anda yakin ingin menghapus postingan "{post.title}"? Tindakan ini tidak dapat dibatalkan.
-            </p>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              <button
-                onClick={() => setShowConfirm(false)}
-                style={{
-                  padding: "8px 20px",
-                  borderRadius: 8,
-                  border: "1px solid #E2E8F0",
-                  background: "#fff",
-                  cursor: "pointer",
-                  fontSize: 14,
-                }}
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleDelete}
-                style={{
-                  padding: "8px 20px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: "#DC2626",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontSize: 14,
-                }}
-              >
-                Hapus
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-// LikeCard component with detailed content
-function LikeCard({ like, index }: { like: Like; index: number }) {
-  const [showDetail, setShowDetail] = useState(false);
-  
-  const getTargetConfig = (type: LikeTargetType) => {
-    if (type === "post") {
-      return {
-        label: "Postingan",
-        Icon: FileText,
-        bg: "#EEF2FF",
-        iconColor: "#6366F1",
-        border: "#C7D2FE",
-        badgeBg: "#EEF2FF",
-        badgeText: "#4338CA",
-      };
-    }
-    return {
-      label: "Komentar",
-      Icon: MessageSquare,
-      bg: "#F0FDF4",
-      iconColor: "#22C55E",
-      border: "#BBF7D0",
-      badgeBg: "#F0FDF4",
-      badgeText: "#166534",
-    };
-  };
-
-  const cfg = getTargetConfig(like.target_type);
-  const { Icon } = cfg;
-  const detail = like.target_type === "post" ? like.post_detail : like.comment_detail;
-
-  if (!detail) return null;
-
-  return (
-    <div
-      style={{
-        borderRadius: 12,
-        border: `1px solid ${cfg.border}`,
-        background: "#fff",
-        padding: "14px 18px",
-        transition: "transform .15s, box-shadow .15s",
-        cursor: "pointer",
-        animation: `fadeUp .3s ease both`,
-        animationDelay: `${index * 50}ms`,
-      }}
-      onClick={() => setShowDetail(!showDetail)}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
-        (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(0,0,0,.07)";
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-        (e.currentTarget as HTMLElement).style.boxShadow = "none";
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: 10,
-          background: cfg.bg,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
-        }}>
-          <Icon size={20} color={cfg.iconColor} strokeWidth={2} />
-        </div>
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-            <span style={{
-              fontSize: 11, fontWeight: 700,
-              padding: "2px 9px", borderRadius: 20,
-              background: cfg.badgeBg, color: cfg.badgeText,
-              letterSpacing: "0.03em",
-              textTransform: "capitalize",
-            }}>
-              {cfg.label}
-            </span>
-            <span style={{
-              fontSize: 11, color: "#64748B",
-            }}>
-              dari {detail.user?.username || "Unknown User"}
-            </span>
-          </div>
-
-          <div style={{ fontWeight: 600, fontSize: 13, color: "#1E293B", marginBottom: 4 }}>
-            {like.target_type === "post" 
-              ? (detail as any).title 
-              : (detail as any).post?.title || "Komentar"
-            }
-          </div>
-
-          <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.4 }}>
-            {like.target_type === "post" 
-              ? (detail as any).body?.substring(0, 100) 
-              : (detail as any).body
-            }
-            {(detail as any).body?.length > 100 && "..."}
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, color: "#94A3B8", fontSize: 11 }}>
-            <span>❤️ {formatDateTime(like.created_at)}</span>
-          </div>
-        </div>
-
-        <Heart
-          size={18}
-          strokeWidth={0}
-          fill="#F43F5E"
-          style={{ flexShrink: 0, opacity: 0.85 }}
-        />
-      </div>
-
-      {/* Detail expanded section */}
-      {showDetail && like.target_type === "comment" && (
-        <div style={{
-          marginTop: 12,
-          paddingTop: 12,
-          borderTop: "1px solid #E2E8F0",
-          background: "#F8FAFC",
-          borderRadius: 8,
-          padding: 12,
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 6 }}>
-            Detail Komentar:
-          </div>
-          <div style={{ fontSize: 13, color: "#1E293B", lineHeight: 1.5 }}>
-            {(detail as any).body}
-          </div>
-          <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 6 }}>
-            Pada postingan: {(detail as any).post?.title}
-          </div>
-        </div>
-      )}
-
-      {showDetail && like.target_type === "post" && (
-        <div style={{
-          marginTop: 12,
-          paddingTop: 12,
-          borderTop: "1px solid #E2E8F0",
-          background: "#F8FAFC",
-          borderRadius: 8,
-          padding: 12,
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 6 }}>
-            Detail Postingan:
-          </div>
-          <div style={{ fontSize: 13, color: "#1E293B", lineHeight: 1.5 }}>
-            {(detail as any).body}
-          </div>
-          <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 6 }}>
-            Kategori: {(detail as any).category?.name}
-          </div>
-        </div>
-      )}
+      ))}
     </div>
   );
 }
 
-function EmptyState({ label, icon: Icon }: { label: string; icon?: React.ElementType }) {
-  return (
-    <div style={{
-      textAlign: "center",
-      padding: "52px 16px",
-      border: "1.5px dashed #E2E8F0",
-      borderRadius: 14,
-      color: "#94A3B8",
-    }}>
-      {Icon && <Icon size={36} strokeWidth={1.5} style={{ margin: "0 auto 12px", display: "block", opacity: 0.5 }} />}
-      <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>{label}</p>
-    </div>
-  );
-}
+// ─── Likes Section ────────────────────────────────────────────────────────────
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
-
-export default function ProfilePage({ username }: { username?: string }) {
-  const [data, setData] = useState<UserDetailResponse | null>(null);
-  const [likesData, setLikesData] = useState<LikesResponse | null>(null);
+function LikesSection({
+  username,
+  onNavigatePost,
+}: {
+  username: string;
+  onNavigatePost: (id: string) => void;
+}) {
+  const [data, setData] = useState<LikesApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingLikes, setLoadingLikes] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"posts" | "badges" | "likes">("posts");
-  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
-  const [likesFilter, setLikesFilter] = useState<"all" | "post" | "comment">("all");
 
   useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        setLoadingLikes(true);
-        setCurrentUserId("33119eac-b64e-40bf-a8b3-81b5a4cd8ddf");
-        
-        await new Promise(r => setTimeout(r, 600));
-        
-        let json;
-        if (username === "johndoe") {
-          json = MOCK_OTHER_USER;
-        } else {
-          json = MOCK;
-        }
-        
-        setData(json);
-        setIsFollowing(json.is_following);
-        
-        // Load likes data
-        await new Promise(r => setTimeout(r, 500));
-        setLikesData(MOCK_LIKES);
-      } catch (err) {
-        setError("Gagal memuat profil.");
-        console.error(err);
-      } finally {
-        setLoading(false);
-        setLoadingLikes(false);
-      }
-    }
-    load();
+    setLoading(true);
+    fetch(`/api/likes-user/${username}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Gagal memuat likes.");
+        return res.json() as Promise<LikesApiResponse>;
+      })
+      .then(setData)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
   }, [username]);
-
-  const handleDeletePost = (postId: string) => {
-    if (data) {
-      setData({
-        ...data,
-        user: {
-          ...data.user,
-          posts: data.user.posts.filter(post => post.id !== postId),
-          posts_count: data.user.posts_count - 1,
-        },
-      });
-    }
-  };
-
-  const likes = likesData?.likes ?? [];
-  const filteredLikes = likesFilter === "all" 
-    ? likes 
-    : likes.filter(l => l.target_type === likesFilter);
-
-  const likesCounts = {
-    all: likes.length,
-    post: likes.filter(l => l.target_type === "post").length,
-    comment: likes.filter(l => l.target_type === "comment").length,
-  };
 
   if (loading) {
     return (
-      <div style={{ maxWidth: 680, margin: "0 auto", padding: "40px 16px" }}>
-        {[1, 2, 3].map(i => (
-          <div key={i} style={{
-            height: i === 1 ? 120 : 60,
-            borderRadius: 12,
-            background: "linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%)",
-            backgroundSize: "200% 100%",
-            animation: "shimmer 1.4s infinite",
-            marginBottom: 16,
-          }} />
-        ))}
-        <style>{`@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
+      <div className="flex items-center justify-center py-12 gap-2">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-blue" />
+        <span className="text-xs text-zinc-400">Memuat likes…</span>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div style={{ maxWidth: 680, margin: "60px auto", textAlign: "center", color: "#EF4444", fontSize: 14 }}>
-        {error ?? "Data tidak tersedia."}
+      <p className="text-xs text-red-500 italic py-6 text-center">
+        {error ?? "Gagal memuat data likes."}
+      </p>
+    );
+  }
+
+  if (data.likes.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-10 gap-2">
+        <Heart className="h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+        <p className="text-xs text-zinc-400 italic">Belum ada like.</p>
       </div>
     );
   }
 
-  const { user } = data;
+  return (
+    <div className="space-y-2">
+      {data.likes.map((like) => (
+        <div key={like.id} className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-1.5">
+          {/* type badge */}
+          <div className="flex items-center justify-between">
+            <span
+              className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                like.target_type === "post"
+                  ? "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400"
+                  : "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
+              }`}
+            >
+              {like.target_type === "post" ? (
+                <FileText className="h-2.5 w-2.5" />
+              ) : (
+                <MessageSquare className="h-2.5 w-2.5" />
+              )}
+              {like.target_type === "post" ? "Post" : "Komentar"}
+            </span>
+            <span className="text-[10px] text-zinc-400 font-mono">
+              {formatDate(like.created_at)}
+            </span>
+          </div>
+
+          {/* content */}
+          {like.target_type === "post" && like.post ? (
+            <div
+              className="cursor-pointer group"
+              onClick={() => onNavigatePost(like.post!.id)}
+            >
+              <p className="text-xs font-semibold text-zinc-900 dark:text-white group-hover:text-brand-blue line-clamp-1 flex items-center gap-1">
+                {like.post.title}
+                <ChevronRight className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </p>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
+                {like.post.body}
+              </p>
+              <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-400 font-mono">
+                <PostStatusBadge post={like.post} />
+                <span>↑{like.post.vote_score}</span>
+                <span>{like.post.view_count} views</span>
+              </div>
+            </div>
+          ) : like.target_type === "comment" && like.comment ? (
+            <div
+              className="cursor-pointer group"
+              onClick={() => onNavigatePost(like.comment!.post_id)}
+            >
+              <p className="text-xs text-zinc-700 dark:text-zinc-300 line-clamp-2 group-hover:text-brand-blue">
+                "{like.comment.body}"
+              </p>
+              <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-400 font-mono">
+                {like.comment.is_accepted ? (
+                  <span className="text-emerald-600 font-bold">✓ Diterima</span>
+                ) : null}
+                <span>↑{like.comment.vote_score}</span>
+                <span className="text-[10px] text-zinc-400">
+                  klik untuk lihat post →
+                </span>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function ProfilePage() {
+  const router = useRouter();
+  const params = useParams<{ username: string }>();
+  const username = params?.username;
+
+  const [data, setData] = useState<ApiResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>("posts");
+
+  useEffect(() => {
+    if (!username) return;
+    setLoading(true);
+    fetch(`/api/profile/${username}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Pengguna tidak ditemukan.");
+        return res.json() as Promise<ApiResponse>;
+      })
+      .then(setData)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [username]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+        <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-brand-blue" />
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Memuat profil…</p>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+        <p className="text-sm font-semibold text-red-500">
+          {error ?? "Gagal memuat profil."}
+        </p>
+        <button
+          onClick={() => router.back()}
+          className="text-xs text-brand-blue hover:underline"
+        >
+          ← Kembali
+        </button>
+      </div>
+    );
+  }
+
+  const { user, is_following } = data;
+  const role = primaryRole(user.roles);
+  const src = avatarSrc(user.avatar_url);
+  const answeredPosts = user.posts.filter((p) => p.is_answered);
+  const openPosts = user.posts.filter((p) => p.status === "open" && !p.is_answered);
+
+  const tabs: { key: TabKey; label: string; icon: React.ReactNode; count?: number }[] = [
+    { key: "posts", label: "Pertanyaan", icon: <FileText className="h-3.5 w-3.5" />, count: user.posts_count },
+    { key: "activity", label: "Aktivitas", icon: <TrendingUp className="h-3.5 w-3.5" /> },
+    { key: "likes", label: "Disukai", icon: <Heart className="h-3.5 w-3.5" /> },
+  ];
 
   return (
-    <div style={{
-      maxWidth: 680, margin: "0 auto", padding: "32px 16px 64px",
-      fontFamily: "'Inter', 'Segoe UI', sans-serif",
-      color: "#1E293B",
-    }}>
-      <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes shimmer {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-      `}</style>
+    <div className="space-y-5">
+      {/* ── Hero Card ─────────────────────────────────────────────────────── */}
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+        {/* Banner */}
+        <div className="h-28 bg-gradient-to-r from-brand-blue to-sky-500" />
 
-      {/* Profile card */}
-      <div style={{
-        borderRadius: 16,
-        border: "1px solid #E2E8F0",
-        background: "#fff",
-        padding: "28px 24px",
-        marginBottom: 20,
-      }}>
-        <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
-          <AvatarBlock user={user} />
-
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>
-                @{user.username}
-              </h1>
-              {user.roles.map(r => <RoleBadge key={r.id} role={r} />)}
+        <div className="px-5 pb-5 relative">
+          {/* Avatar row */}
+          <div className="-mt-12 mb-4 flex items-end justify-between gap-4">
+            {/* Avatar */}
+            <div className="shrink-0">
+              {src ? (
+                <img
+                  src={src}
+                  alt={user.username}
+                  referrerPolicy="no-referrer"
+                  className="h-20 w-20 rounded-xl object-cover border-4 border-white dark:border-zinc-950 shadow-md bg-zinc-100"
+                />
+              ) : (
+                <div className="h-20 w-20 rounded-xl bg-brand-blue text-white flex items-center justify-center font-black text-2xl shadow-inner uppercase border-4 border-white dark:border-zinc-950 select-none">
+                  {user.username.charAt(0)}
+                </div>
+              )}
             </div>
 
-            <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 4 }}>
-              {user.email} · Bergabung {formatDate(user.created_at)}
-            </div>
-
-            {user.bio && user.bio !== "string" && (
-              <p style={{ margin: "8px 0 0", fontSize: 14, color: "#475569", lineHeight: 1.6 }}>
-                {user.bio}
-              </p>
-            )}
-
-            <div style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6,
-              background: "#EEF2FF", borderRadius: 20, padding: "4px 12px" }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#6366F1", display: "inline-block" }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#4338CA" }}>
-                {levelLabel(user.level)} · {user.reputation_points} poin
-              </span>
+            {/* Follow button */}
+            <div className="pt-18">
+              <button
+                className={`text-xs font-semibold px-4 py-2 rounded-lg border transition-all ${
+                  is_following
+                    ? "bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border-zinc-200 dark:border-zinc-800"
+                    : "bg-brand-blue hover:bg-brand-blue/90 text-white border-transparent"
+                }`}
+              >
+                {is_following ? "Mengikuti" : "+ Ikuti"}
+              </button>
             </div>
           </div>
 
-          {currentUserId !== user.id && (
-            <button
-              onClick={() => setIsFollowing(f => !f)}
-              style={{
-                alignSelf: "flex-start",
-                padding: "8px 20px",
-                borderRadius: 8,
-                border: isFollowing ? "1.5px solid #C7D2FE" : "1.5px solid #6366F1",
-                background: isFollowing ? "#EEF2FF" : "#6366F1",
-                color: isFollowing ? "#4338CA" : "#fff",
-                fontWeight: 600, fontSize: 13, cursor: "pointer",
-                transition: "all .15s",
-              }}
-            >
-              {isFollowing ? "Mengikuti ✓" : "+ Ikuti"}
-            </button>
-          )}
-        </div>
+          {/* Name + role badge */}
+          <div className="mb-4">
+            <div className="flex flex-wrap items-center gap-2 mb-0.5">
+              <h1 className="text-lg font-bold text-zinc-900 dark:text-white">
+                {user.username}
+              </h1>
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${roleBadgeStyle(role)}`}
+              >
+                {role}
+              </span>
+              {user.is_banned ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 inline-flex items-center gap-1">
+                  <Shield className="h-2.5 w-2.5" />
+                  Dibanned
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs text-zinc-400 font-mono">@{user.username}</p>
+            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 flex items-center gap-1 mt-0.5">
+              <Calendar className="h-3 w-3" />
+              Bergabung {formatDateShort(user.created_at)}
+            </p>
+          </div>
 
-        <div style={{ height: 1, background: "#F1F5F9", margin: "20px 0" }} />
+          {/* Bio + social stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+            {/* Social stats */}
+            <div className="flex flex-row sm:flex-col gap-3 sm:gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+              <div className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                <span>
+                  <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">
+                    {user.followers_count}
+                  </strong>{" "}
+                  pengikut
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <UserCheck className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                <span>
+                  <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">
+                    {user.following_count}
+                  </strong>{" "}  
+                  mengikuti{" "}
+                  
+                 
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Award className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                <span>
+                  <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">
+                    {user.badges_count}
+                  </strong>{" "}
+                  lencana
+                </span>
+              </div>
+            </div>
 
-        <div style={{ display: "flex", gap: 0, justifyContent: "space-around", flexWrap: "wrap", rowGap: 12 }}>
-          <StatPill label="Postingan" value={user.posts_count} />
-          <div style={{ width: 1, background: "#F1F5F9" }} />
-          <StatPill label="Pengikut" value={user.followers_count} />
-          <div style={{ width: 1, background: "#F1F5F9" }} />
-          <StatPill label="Mengikuti" value={user.following_count} />
-          <div style={{ width: 1, background: "#F1F5F9" }} />
-          <StatPill label="Lencana" value={user.badges_count} />
-          <div style={{ width: 1, background: "#F1F5F9" }} />
-          <StatPill label="Reputasi" value={user.reputation_points} />
+            {/* Bio */}
+            <div className="sm:col-span-2">
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">
+                Bio
+              </p>
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                {user.bio || (
+                  <span className="italic text-zinc-400">Belum ada bio ditulis.</span>
+                )}
+              </p>
+
+              {/* Badges (not roles) */}
+              {user.badges.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {user.badges.map((b) => (
+                    <span
+                      key={b.id}
+                      className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold border"
+                      style={{
+                        borderColor: b.color ?? "#6366f1",
+                        color: b.color ?? "#6366f1",
+                        backgroundColor: `${b.color ?? "#6366f1"}18`,
+                      }}
+                    >
+                      <Award className="h-2.5 w-2.5" />
+                      {b.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Tabs - Now with 3 tabs */}
-      <div style={{
-        display: "flex", gap: 0,
-        borderBottom: "2px solid #E2E8F0",
-        marginBottom: 20,
-      }}>
-        {(["posts", "badges", "likes"] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              padding: "10px 20px",
-              fontSize: 14, fontWeight: 600,
-              color: activeTab === tab ? "#6366F1" : "#94A3B8",
-              borderBottom: activeTab === tab ? "2px solid #6366F1" : "2px solid transparent",
-              marginBottom: -2,
-              transition: "color .15s",
-              textTransform: "capitalize",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
+      {/* ── Quick stats strip ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Reputasi", value: user.reputation_points, sub: `Level ${user.level}` },
+          { label: "Total Post", value: user.posts_count, sub: "pertanyaan" },
+          { label: "Lencana", value: user.badges_count, sub: "badge" },
+        ].map(({ label, value, sub }) => (
+          <div
+            key={label}
+            className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 text-center"
           >
-            {tab === "posts" && <FileText size={14} />}
-            {tab === "badges" && <span>🏅</span>}
-            {tab === "likes" && <Heart size={14} />}
-            {tab === "posts" ? `Postingan (${user.posts_count})` : 
-             tab === "badges" ? `Lencana (${user.badges_count})` : 
-             `Like (${likes.length})`}
-          </button>
+            <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{label}</div>
+            <div className="text-xl font-black text-brand-blue font-mono mt-0.5">{value.toLocaleString()}</div>
+            <div className="text-[10px] text-zinc-400 mt-0.5">{sub}</div>
+          </div>
         ))}
       </div>
 
-      {/* Posts Tab */}
-      {activeTab === "posts" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {user.posts.length === 0
-            ? <EmptyState label="Belum ada postingan." />
-            : user.posts.map(post => (
-                <PostCard 
-                  key={post.id} 
-                  post={post} 
-                  currentUserId={currentUserId}
-                  onDelete={handleDeletePost}
-                />
-              ))
-          }
-        </div>
-      )}
-
-      {/* Badges Tab */}
-      {activeTab === "badges" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-          {user.badges.length === 0
-            ? <EmptyState label="Belum ada lencana." />
-            : user.badges.map(badge => <BadgeCard key={badge.id} badge={badge} />)
-          }
-        </div>
-      )}
-
-      {/* Likes Tab */}
-      {activeTab === "likes" && (
-        <div>
-          {/* Filter buttons for likes */}
-          <div style={{
-            display: "flex", gap: 6, marginBottom: 20,
-            background: "#F8FAFC", borderRadius: 10,
-            padding: 4, border: "1px solid #E2E8F0",
-          }}>
-            <Filter size={14} color="#CBD5E1" style={{ alignSelf: "center", marginLeft: 6, flexShrink: 0 }} />
-            {[
-              { key: "all" as const, label: "Semua", Icon: Heart },
-              { key: "post" as const, label: "Postingan", Icon: FileText },
-              { key: "comment" as const, label: "Komentar", Icon: MessageSquare },
-            ].map(({ key, label, Icon }) => (
-              <button
-                key={key}
-                onClick={() => setLikesFilter(key)}
-                style={{
-                  flex: 1,
-                  padding: "7px 10px",
-                  borderRadius: 7,
-                  border: "none",
-                  background: likesFilter === key ? "#fff" : "transparent",
-                  boxShadow: likesFilter === key ? "0 1px 4px rgba(0,0,0,.08)" : "none",
-                  color: likesFilter === key ? "#1E293B" : "#94A3B8",
-                  fontWeight: likesFilter === key ? 600 : 400,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  display: "flex", alignItems: "center",
-                  justifyContent: "center", gap: 5,
-                  transition: "all .15s",
-                }}
-              >
-                <Icon size={13} strokeWidth={2} />
-                {label}
-                <span style={{
-                  fontSize: 11, fontWeight: 700,
-                  background: likesFilter === key ? "#F1F5F9" : "transparent",
-                  color: likesFilter === key ? "#475569" : "#CBD5E1",
-                  padding: "1px 6px", borderRadius: 10,
-                  minWidth: 18, textAlign: "center",
-                }}>
-                  {likesCounts[key]}
+      {/* ── Tab nav ───────────────────────────────────────────────────────── */}
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+        {/* Tab header */}
+        <div className="flex border-b border-zinc-200 dark:border-zinc-800">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+                activeTab === tab.key
+                  ? "border-brand-blue text-brand-blue"
+                  : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+              {tab.count !== undefined && (
+                <span className="ml-0.5 font-mono text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded-full">
+                  {tab.count}
                 </span>
-              </button>
-            ))}
-          </div>
+              )}
+            </button>
+          ))}
+        </div>
 
-          {/* Likes content */}
-          {loadingLikes ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {[1, 2, 3].map(i => (
-                <div key={i} style={{
-                  borderRadius: 12,
-                  border: "1px solid #E2E8F0",
-                  padding: "16px 18px",
-                  background: "#fff",
-                }}>
-                  <div style={{ height: 12, width: "40%", borderRadius: 6, background: "#F1F5F9", marginBottom: 8 }} />
-                  <div style={{ height: 10, width: "65%", borderRadius: 6, background: "#F1F5F9" }} />
+        {/* Tab content */}
+        <div className="p-4">
+          {/* ── Posts tab ─────────────────────────────────────────────────── */}
+          {activeTab === "posts" && (
+            <div className="space-y-2">
+              {user.posts.length > 0 ? (
+                user.posts.map((post) => (
+                  <div
+                    key={post.id}
+                    onClick={() => router.push(`/questions/${post.id}`)}
+                    className="p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-brand-blue cursor-pointer transition-all duration-150 space-y-2 text-left"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-white line-clamp-1 hover:text-brand-blue flex-1">
+                        {post.title}
+                      </h4>
+                      <PostStatusBadge post={post} />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="text-[10px] px-1.5 py-0.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 rounded font-mono">
+                        {post.category.name}
+                      </span>
+                      {post.tags.map((t) => (
+                        <span
+                          key={t.id}
+                          style={{ borderColor: t.color, color: t.color }}
+                          className="text-[10px] px-1.5 py-0.5 border rounded font-mono font-semibold bg-white dark:bg-zinc-950"
+                        >
+                          {t.name}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-brand-blue">↑{post.upvotes_count}</span>
+                        <span>{post.comments_count} komentar</span>
+                        <span>{post.view_count} views</span>
+                      </div>
+                      <span>{formatDate(post.created_at)}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center py-10 gap-2">
+                  <FileText className="h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+                  <p className="text-xs text-zinc-400 italic">Belum ada pertanyaan.</p>
                 </div>
-              ))}
-            </div>
-          ) : filteredLikes.length === 0 ? (
-            <EmptyState label="Belum ada aktivitas like." icon={Inbox} />
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {filteredLikes.map((like, i) => (
-                <LikeCard key={like.id} like={like} index={i} />
-              ))}
+              )}
             </div>
           )}
+
+          {/* ── Activity tab ──────────────────────────────────────────────── */}
+          {activeTab === "activity" && (
+            <div className="space-y-4">
+              {/* Stats */}
+              <div className="space-y-2">
+                {[
+                  { label: "Total pertanyaan ditulis", value: user.posts_count },
+                  { label: "Post terjawab", value: answeredPosts.length },
+                  { label: "Post masih terbuka", value: openPosts.length },
+                  { label: "Pengikut", value: user.followers_count },
+                  { label: "Mengikuti", value: user.following_count },
+                ].map(({ label, value }) => (
+                  <div
+                    key={label}
+                    className="flex justify-between items-center text-xs text-zinc-600 dark:text-zinc-400 py-1.5 border-b border-zinc-100 dark:border-zinc-800/60 last:border-0"
+                  >
+                    <span>{label}</span>
+                    <span className="font-bold text-zinc-900 dark:text-white font-mono">{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Accept rate */}
+              {user.posts_count > 0 && (
+                <div className="pt-2">
+                  <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
+                    <span>Accept rate</span>
+                    <span className="text-brand-blue font-mono">
+                      {Math.round((answeredPosts.length / user.posts_count) * 100)}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-brand-blue transition-all"
+                      style={{
+                        width: `${Math.round((answeredPosts.length / user.posts_count) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Badges */}
+              <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">
+                  Lencana ({user.badges_count})
+                </p>
+                <BadgesSection badges={user.badges} count={user.badges_count} />
+              </div>
+            </div>
+          )}
+
+          {/* ── Likes tab ─────────────────────────────────────────────────── */}
+          {activeTab === "likes" && username && (
+            <LikesSection
+              username={username}
+              onNavigatePost={(id) => router.push(`/questions/${id}`)}
+            />
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
