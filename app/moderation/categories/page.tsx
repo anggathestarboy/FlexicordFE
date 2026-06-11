@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Folder, FolderOpen, ChevronRight, ChevronDown, Layers, Hash, Pencil, Trash2, Plus, X, Loader2, Sparkles } from "lucide-react";
 import { useApp } from "@/context/AppContext";
-import { Category, CategoryChild } from "../api/categories/CategoryType";
+import { Category, CategoryChild } from "../../api/categories/CategoryType";
 import axios from "axios";
 
 // ── Category Card Component ──────────────────────────────────────────────────
