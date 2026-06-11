@@ -1079,7 +1079,7 @@ export default function MyProfilePage() {
                 user.posts.map((post) => (
                   <div
                     key={post.id}
-                    onClick={() => router.push(`/questions/${post.id}`)}
+                    onClick={() => router.push(`/posts/${post.id}`)}
                     className="p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-brand-blue cursor-pointer transition-all duration-150 space-y-2 text-left"
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -1190,14 +1190,14 @@ export default function MyProfilePage() {
           {activeTab === "likes" && (
             <LikesSection
               username={user.username}
-              onNavigatePost={(id) => router.push(`/questions/${id}`)}
+              onNavigatePost={(id) => router.push(`/posts/${id}`)}
             />
           )}
 
           {/* ── Bookmarks tab ────────────────────────────────────────────── */}
           {activeTab === "bookmarks" && (
             <BookmarkSection
-              onNavigatePost={(id) => router.push(`/questions/${id}`)}
+              onNavigatePost={(id) => router.push(`/posts/${id}`)}
             />
           )}
 
