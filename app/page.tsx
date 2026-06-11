@@ -8,30 +8,11 @@ import {
   Eye,
   ArrowBigUp,
   CheckCircle,
-  MessageSquare,
+  Heart,
+  Bookmark,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ApiResponse, Post } from "@/lib/types";
-
-
-
-type User = {
-  id: string;
-  username: string;
-  avatar_url: string | null;
-  reputation_points: number;
-  level: number;
-};
-
-
-
-type PaginationLink = {
-  url: string | null;
-  label: string;
-  page: number | null;
-  active: boolean;
-};
-
 
 type SortTab = "terpopuler" | "terbaru";
 
@@ -155,96 +136,93 @@ export default function HomePage() {
               onClick={() => router.push(`/questions/${post.id}`)}
               className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 hover:border-brand-blue transition-all cursor-pointer"
             >
-              <div className="flex flex-col md:flex-row gap-5">
+              {/* CONTENT: title, body, tags */}
+              <div className="min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <h2 className="text-base font-bold text-zinc-900 dark:text-white hover:text-brand-blue line-clamp-2">
+                    {post.title}
+                  </h2>
+                  {post.is_answered === 1 && (
+                    <span className="shrink-0 flex items-center gap-1 text-xs text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full font-medium">
+                      <CheckCircle className="h-3 w-3" />
+                      Terjawab
+                    </span>
+                  )}
+                </div>
+
+                <p className="mt-1.5 text-sm text-zinc-500 line-clamp-2">
+                  {post.body}
+                </p>
+
+                {/* TAGS */}
+                {post.tags.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {post.tags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="text-xs px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-mono"
+                      >
+                        #{tag.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* FOOTER: stats + user + category */}
+              <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2">
                 {/* STATS */}
-                <div className="flex md:flex-col gap-4 md:gap-3 text-xs text-zinc-500 md:w-20 md:items-center md:text-center shrink-0">
-                  <div className="flex md:flex-col items-center gap-1">
+                <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400">
+                  <div className="flex items-center gap-1">
                     <ArrowBigUp className="h-4 w-4" />
                     <span>{post.vote_score}</span>
-                    <span className="hidden md:inline text-zinc-400">votes</span>
                   </div>
-                  <div className="flex md:flex-col items-center gap-1">
-                    <MessageSquare className="h-4 w-4" />
-                    <span>{post.comments_count}</span>
-                    <span className="hidden md:inline text-zinc-400">jawaban</span>
+                  <div className="flex items-center gap-1">
+                    <Heart className="h-4 w-4" />
+                    <span>{post.likes_count}</span>
                   </div>
-                  <div className="flex md:flex-col items-center gap-1">
+                  <div className="flex items-center gap-1">
+                    <Bookmark className="h-4 w-4" />
+                    <span>{post.bookmarks_count}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
                     <Eye className="h-4 w-4" />
                     <span>{post.view_count}</span>
-                    <span className="hidden md:inline text-zinc-400">views</span>
                   </div>
                 </div>
 
-                {/* CONTENT */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <h2 className="text-base font-bold text-zinc-900 dark:text-white hover:text-brand-blue line-clamp-2">
-                      {post.title}
-                    </h2>
-                    {post.is_answered === 1 && (
-                      <span className="shrink-0 flex items-center gap-1 text-xs text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full font-medium">
-                        <CheckCircle className="h-3 w-3" />
-                        Terjawab
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="mt-1.5 text-sm text-zinc-500 line-clamp-2">
-                    {post.body}
-                  </p>
-
-                  {/* TAGS */}
-                  {post.tags.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {post.tags.map((tag) => (
-                        <span
-                          key={tag.id}
-                          className="text-xs px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-mono"
-                        >
-                          #{tag.name}
-                        </span>
-                      ))}
+                {/* USER + CATEGORY */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
+                    {post.category.name}
+                  </span>
+                  {post.is_edited && (
+                    <span className="text-xs text-zinc-400 italic">diedit</span>
+                  )}
+                  {post.user.avatar_url ? (
+                    <img
+                      src={`${AVATAR_BASE}${post.user.avatar_url}`}
+                      alt={post.user.username}
+                      className="w-5 h-5 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-brand-blue/20 flex items-center justify-center text-[10px] font-bold text-brand-blue uppercase">
+                      {post.user.username[0]}
                     </div>
                   )}
-
-                  {/* FOOTER: category + user + date */}
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
-                        {post.category.name}
-                      </span>
-                      {post.is_edited && (
-                        <span className="text-xs text-zinc-400 italic">diedit</span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {post.user.avatar_url ? (
-                        <img
-                          src={`${AVATAR_BASE}${post.user.avatar_url}`}
-                          alt={post.user.username}
-                          className="w-5 h-5 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-5 h-5 rounded-full bg-brand-blue/20 flex items-center justify-center text-[10px] font-bold text-brand-blue uppercase">
-                          {post.user.username[0]}
-                        </div>
-                      )}
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                        <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                          {post.user.username}
-                        </span>
-                        {" · "}
-                        {post.user.reputation_points} rep
-                        {" · "}
-                        {new Date(post.created_at).toLocaleDateString("id-ID", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </span>
-                    </div>
-                  </div>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                    <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                      {post.user.username}
+                    </span>
+                    {" · "}
+                    {post.user.reputation_points} rep
+                    {" · "}
+                    {new Date(post.created_at).toLocaleDateString("id-ID", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
                 </div>
               </div>
             </div>

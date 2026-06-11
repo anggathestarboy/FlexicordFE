@@ -454,7 +454,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Follow button */}
-            <div className="pt-18">
+            <div className="pb-1">
               <button
                 className={`text-xs font-semibold px-4 py-2 rounded-lg border transition-all ${
                   is_following
@@ -508,12 +508,11 @@ export default function ProfilePage() {
               <div className="flex items-center gap-1.5">
                 <UserCheck className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
                 <span>
+                  mengikuti{" "}
                   <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">
                     {user.following_count}
-                  </strong>{" "}  
-                  mengikuti{" "}
-                  
-                 
+                  </strong>{" "}
+                  orang
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
