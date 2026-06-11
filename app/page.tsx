@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Search,
   SlidersHorizontal,
@@ -11,7 +11,7 @@ import {
   Heart,
   Bookmark,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { ApiResponse, Post } from "@/lib/types";
 
 type UUID = string;
@@ -21,28 +21,63 @@ const AVATAR_BASE = "https://pegaduanmasyarakat.alwaysdata.net/storage/";
 
 export default function HomePage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [posts, setPosts] = useState<Post[]>([]);
-  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [activeSort, setActiveSort] = useState<SortTab>("terpopuler");
-  const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
 
+  // Ambil state dari URL
+  const activeSort = (searchParams.get("sort_by") === "created_at" ? "terbaru" : "terpopuler") as SortTab;
+  const currentPage = parseInt(searchParams.get("page") ?? "1", 10);
+  const search = searchParams.get("search") ?? "";
+
+  // Debounce search input lokal supaya tidak langsung push URL setiap ketikan
+  const [searchInput, setSearchInput] = useState(search);
+
+  const updateParams = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === null || value === "") {
+          params.delete(key);
+        } else {
+          params.set(key, value);
+        }
+      });
+      router.push(`${pathname}?${params.toString()}`);
+    },
+    [searchParams, pathname, router]
+  );
+
+  // Debounce: push search ke URL 400ms setelah user berhenti mengetik
   useEffect(() => {
-    getPosts(currentPage);
-  }, [activeSort, currentPage]);
+    const timer = setTimeout(() => {
+      updateParams({ search: searchInput || null, page: "1" });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    getPosts();
+  }, [activeSort, currentPage, search]);
 
   const getSortParam = (): string => {
-    if (activeSort === "terpopuler") return "view_count";
-    if (activeSort === "terbaru") return "created_at";
-    return "created_at";
+    return activeSort === "terbaru" ? "created_at" : "view_count";
   };
 
-  const getPosts = async (page: number) => {
+  const getPosts = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/posts?sort_by=${getSortParam()}&page=${page}`);
+      const params = new URLSearchParams({
+        sort_by: getSortParam(),
+        page: String(currentPage),
+      });
+      if (search) params.set("search", search);
+
+      const res = await fetch(`/api/posts?${params.toString()}`);
       const data: ApiResponse = await res.json();
       setPosts(data.data ?? []);
       setLastPage(data.last_page);
@@ -54,24 +89,20 @@ export default function HomePage() {
     }
   };
 
-  const filteredPosts = posts.filter(
-    (post) =>
-      post.title.toLowerCase().includes(search.toLowerCase()) ||
-      post.body.toLowerCase().includes(search.toLowerCase())
-  );
-
   const handleSortChange = (sort: SortTab) => {
-    setActiveSort(sort);
-    setCurrentPage(1);
+    updateParams({
+      sort_by: sort === "terbaru" ? "created_at" : "view_count",
+      page: "1",
+    });
+  };
+
+  const handlePageChange = (page: number) => {
+    updateParams({ page: String(page) });
   };
 
   const handleLike = async (e: React.MouseEvent, postId: UUID) => {
     e.stopPropagation();
-
-    // Simpan state sebelumnya untuk rollback
     const prevPosts = posts;
-
-    // Optimistic update
     setPosts((prev) =>
       prev.map((post) =>
         post.id === postId
@@ -85,21 +116,15 @@ export default function HomePage() {
           : post
       )
     );
-
     try {
       const res = await fetch("/api/likes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ target_id: postId }),
       });
-
-      if (!res.ok) {
-        // Rollback jika gagal
-        setPosts(prevPosts);
-      }
+      if (!res.ok) setPosts(prevPosts);
     } catch (error) {
       console.error("Like error:", error);
-      // Rollback jika error
       setPosts(prevPosts);
     }
   };
@@ -135,8 +160,8 @@ export default function HomePage() {
         <input
           type="text"
           placeholder="Cari pertanyaan..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           className="w-full pl-10 pr-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
         />
       </div>
@@ -168,15 +193,14 @@ export default function HomePage() {
       {/* LIST */}
       {loading ? (
         <div className="text-center py-20 text-zinc-500 text-sm">Memuat data...</div>
-      ) : filteredPosts.length > 0 ? (
+      ) : posts.length > 0 ? (
         <div className="space-y-4">
-          {filteredPosts.map((post) => (
+          {posts.map((post) => (
             <div
               key={post.id}
               onClick={() => router.push(`/questions/${post.id}`)}
               className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 hover:border-brand-blue transition-all cursor-pointer"
             >
-              {/* CONTENT: title, body, tags */}
               <div className="min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="text-base font-bold text-zinc-900 dark:text-white hover:text-brand-blue line-clamp-2">
@@ -194,7 +218,6 @@ export default function HomePage() {
                   {post.body}
                 </p>
 
-                {/* TAGS */}
                 {post.tags.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {post.tags.map((tag) => (
@@ -209,16 +232,13 @@ export default function HomePage() {
                 )}
               </div>
 
-              {/* FOOTER: stats + user + category */}
               <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2">
-                {/* STATS */}
                 <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400">
                   <div className="flex items-center gap-1">
                     <ArrowBigUp className="h-4 w-4" />
                     <span>{post.vote_score}</span>
                   </div>
 
-                  {/* LIKE BUTTON */}
                   <button
                     onClick={(e) => handleLike(e, post.id)}
                     className={`flex items-center gap-1 transition-colors ${
@@ -244,7 +264,6 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* USER + CATEGORY */}
                 <div className="flex items-center gap-2">
                   <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
                     {post.category.name}
@@ -295,7 +314,7 @@ export default function HomePage() {
             </p>
           </div>
           <button
-            onClick={() => setSearch("")}
+            onClick={() => { setSearchInput(""); updateParams({ search: null, page: "1" }); }}
             className="text-xs bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-semibold px-4 py-2 rounded-lg cursor-pointer"
           >
             Reset Pencarian
@@ -307,7 +326,7 @@ export default function HomePage() {
       {!loading && lastPage > 1 && (
         <div className="flex items-center justify-center gap-1 pt-4">
           <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
             className="px-3 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
           >
@@ -317,7 +336,7 @@ export default function HomePage() {
           {Array.from({ length: lastPage }, (_, i) => i + 1).map((page) => (
             <button
               key={page}
-              onClick={() => setCurrentPage(page)}
+              onClick={() => handlePageChange(page)}
               className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
                 currentPage === page
                   ? "bg-brand-blue text-white border-brand-blue font-bold"
@@ -329,7 +348,7 @@ export default function HomePage() {
           ))}
 
           <button
-            onClick={() => setCurrentPage((p) => Math.min(lastPage, p + 1))}
+            onClick={() => handlePageChange(Math.min(lastPage, currentPage + 1))}
             disabled={currentPage === lastPage}
             className="px-3 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
           >

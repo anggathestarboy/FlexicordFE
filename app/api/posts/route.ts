@@ -7,11 +7,15 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const sortBy = searchParams.get("sort_by") ?? "view_count";
     const page = searchParams.get("page") ?? "1";
+    const search = searchParams.get("search") ?? "";
 
     const cookieStore = await cookies();
     const token = cookieStore.get("token")?.value;
 
-    const apiUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/posts?sort_by=${sortBy}&page=${page}`;
+    const params = new URLSearchParams({ sort_by: sortBy, page });
+    if (search) params.set("search", search);
+
+    const apiUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/posts?${params.toString()}`;
 
     const response = await axios.get(apiUrl, {
       headers: {
@@ -26,13 +30,8 @@ export async function GET(request: Request) {
   } catch (error: any) {
     console.error("GET Error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        message: "Gagal mengirim data",
-      },
-      {
-        status: error.response?.status ?? 500,
-      },
+      { success: false, message: "Gagal mengirim data" },
+      { status: error.response?.status ?? 500 }
     );
   }
 }

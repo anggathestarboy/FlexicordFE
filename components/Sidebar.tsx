@@ -162,29 +162,33 @@ export default function Sidebar({
               <span>Kategori</span>
             </Link>
 
-            <Link
-              href="/ask"
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer ${
-                pathname === '/ask'
-                  ? 'bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue font-semibold'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white'
-              }`}
-            >
-              <HelpCircle className="h-4 w-4" />
-              <span>Tanya Masalah</span>
-            </Link>
+            {isLoggedIn && (
+              <Link
+                href="/ask"
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer ${
+                  pathname === '/ask'
+                    ? 'bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue font-semibold'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white'
+                }`}
+              >
+                <HelpCircle className="h-4 w-4" />
+                <span>Tanya Masalah</span>
+              </Link>
+            )}
 
-            <Link
-              href="/profile"
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer ${
-                pathname === '/profile'
-                  ? 'bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue font-semibold'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white'
-              }`}
-            >
-              <User className="h-4 w-4" />
-              <span>Profil Pengguna</span>
-            </Link>
+            {isLoggedIn && (
+              <Link
+                href="/profile"
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer ${
+                  pathname === '/profile'
+                    ? 'bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue font-semibold'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white'
+                }`}
+              >
+                <User className="h-4 w-4" />
+                <span>Profil Pengguna</span>
+              </Link>
+            )}
           </nav>
         </div>
 
@@ -249,8 +253,8 @@ export default function Sidebar({
 
         {/* Footer */}
         <div className="px-3 text-[10px] text-zinc-400 dark:text-zinc-500 space-y-1">
-          <p>© 2026 Flexicord Inc.</p>
-          <p>Didesain ramah mata demi kenyamanan ngoding tanpa lelah.</p>
+          <p>© 2026 Flexicord</p>
+         
         </div>
 
       </div>
