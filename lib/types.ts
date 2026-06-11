@@ -88,6 +88,7 @@ export interface Post {
   comments_count: number;
   likes_count: number;
   bookmarks_count: number;
+  user_has_liked: boolean;
   created_at: string;
   is_edited: boolean;
   tags: Tag[];
