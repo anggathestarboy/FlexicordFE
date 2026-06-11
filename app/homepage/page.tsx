@@ -104,29 +104,133 @@ function HomePageContent() {
 
   const handleLike = async (e: React.MouseEvent, postId: UUID) => {
     e.stopPropagation();
+
+    const targetPost = posts.find((p) => p.id === postId);
+    if (!targetPost) return;
+
+    const isLiked = targetPost.user_has_liked;
     const prevPosts = posts;
+
+    // Optimistic update
     setPosts((prev) =>
       prev.map((post) =>
         post.id === postId
           ? {
               ...post,
-              likes_count: post.user_has_liked
+              likes_count: isLiked
                 ? post.likes_count - 1
                 : post.likes_count + 1,
-              user_has_liked: !post.user_has_liked,
+              user_has_liked: !isLiked,
             }
           : post
       )
     );
+
     try {
-      const res = await fetch("/api/likes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ target_id: postId }),
-      });
-      if (!res.ok) setPosts(prevPosts);
+      if (isLiked) {
+        // Sudah di-like → unlike via DELETE /api/unlikes
+        const res = await fetch("/api/unlikes", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target_id: postId }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          console.error("Unlike error:", data.message);
+          setPosts(prevPosts);
+        }
+      } else {
+        // Belum di-like → like via POST /api/likes
+        const res = await fetch("/api/likes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target_id: postId }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          console.error("Like error:", data.message);
+          setPosts(prevPosts);
+        }
+      }
     } catch (error) {
-      console.error("Like error:", error);
+      console.error("Like/Unlike error:", error);
+      setPosts(prevPosts);
+    }
+  };
+
+  const handleBookmark = async (e: React.MouseEvent, postId: UUID) => {
+    e.stopPropagation();
+
+    const targetPost = posts.find((p) => p.id === postId);
+    if (!targetPost) return;
+
+    const isBookmarked = targetPost.user_has_bookmarked;
+    const prevPosts = posts;
+
+    // Optimistic update
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              bookmarks_count: isBookmarked
+                ? post.bookmarks_count - 1
+                : post.bookmarks_count + 1,
+              user_has_bookmarked: !isBookmarked,
+              bookmark_id: isBookmarked ? null : post.bookmark_id,
+            }
+          : post
+      )
+    );
+
+    try {
+      if (isBookmarked) {
+        // Sudah di-bookmark → hapus via DELETE /api/bookmark/[bookmark_id]
+        const bookmarkId = targetPost.bookmark_id;
+
+        if (!bookmarkId) {
+          console.error("Unbookmark error: bookmark_id tidak ditemukan");
+          setPosts(prevPosts);
+          return;
+        }
+
+        const res = await fetch(`/api/bookmark/${bookmarkId}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          console.error("Unbookmark error:", data.message);
+          setPosts(prevPosts);
+        }
+      } else {
+        // Belum di-bookmark → tambah via POST /api/bookmark
+        const res = await fetch("/api/bookmark", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ post_id: postId }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          console.error("Bookmark error:", data.message);
+          setPosts(prevPosts);
+          return;
+        }
+
+        // Simpan bookmark_id dari response ke state post
+        const data = await res.json();
+        const newBookmarkId = data.data?.id ?? data.data ?? null;
+
+        setPosts((prev) =>
+          prev.map((post) =>
+            post.id === postId
+              ? { ...post, bookmark_id: newBookmarkId }
+              : post
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Bookmark/Unbookmark error:", error);
       setPosts(prevPosts);
     }
   };
@@ -199,7 +303,7 @@ function HomePageContent() {
           {posts.map((post) => (
             <div
               key={post.id}
-              onClick={() => router.push(`/questions/${post.id}`)}
+              onClick={() => router.push(`/posts/${post.id}`)}
               className="group bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 hover:border-brand-blue hover:shadow-sm transition-all cursor-pointer"
             >
               {/* TOP ROW: title + badge */}
@@ -272,10 +376,21 @@ function HomePageContent() {
                     <span>{post.comments_count}</span>
                   </div>
 
-                  <div className="flex items-center gap-1" title="Bookmark">
-                    <Bookmark className="h-3.5 w-3.5" />
+                  <button
+                    onClick={(e) => handleBookmark(e, post.id)}
+                    title="Bookmark"
+                    className={`flex items-center gap-1 transition-colors ${
+                      post.user_has_bookmarked
+                        ? "text-yellow-500"
+                        : "text-zinc-400 dark:text-zinc-500 hover:text-yellow-400"
+                    }`}
+                  >
+                    <Bookmark
+                      className="h-3.5 w-3.5"
+                      fill={post.user_has_bookmarked ? "currentColor" : "none"}
+                    />
                     <span>{post.bookmarks_count}</span>
-                  </div>
+                  </button>
 
                   <div className="flex items-center gap-1" title="Dilihat">
                     <Eye className="h-3.5 w-3.5" />

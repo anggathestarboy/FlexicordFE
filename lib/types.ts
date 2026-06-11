@@ -89,6 +89,8 @@ export interface Post {
   likes_count: number;
   bookmarks_count: number;
   user_has_liked: boolean;
+  user_has_bookmarked: boolean;
+  bookmark_id?: string | null; // id bookmark record (diisi setelah POST bookmark berhasil)
   created_at: string;
   is_edited: boolean;
   tags: Tag[];
