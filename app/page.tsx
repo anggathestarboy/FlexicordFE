@@ -10,6 +10,7 @@ import {
   CheckCircle,
   Heart,
   Bookmark,
+  MessageCircle,
 } from "lucide-react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { ApiResponse, Post } from "@/lib/types";
@@ -29,12 +30,10 @@ export default function HomePage() {
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  // Ambil state dari URL
   const activeSort = (searchParams.get("sort_by") === "created_at" ? "terbaru" : "terpopuler") as SortTab;
   const currentPage = parseInt(searchParams.get("page") ?? "1", 10);
   const search = searchParams.get("search") ?? "";
 
-  // Debounce search input lokal supaya tidak langsung push URL setiap ketikan
   const [searchInput, setSearchInput] = useState(search);
 
   const updateParams = useCallback(
@@ -52,7 +51,6 @@ export default function HomePage() {
     [searchParams, pathname, router]
   );
 
-  // Debounce: push search ke URL 400ms setelah user berhenti mengetik
   useEffect(() => {
     const timer = setTimeout(() => {
       updateParams({ search: searchInput || null, page: "1" });
@@ -172,7 +170,6 @@ export default function HomePage() {
           <SlidersHorizontal className="h-3.5 w-3.5 text-zinc-400" />
           <span>{total} pertanyaan tersedia</span>
         </div>
-
         <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-1 w-full sm:w-auto">
           {sortTabs.map((tab) => (
             <button
@@ -194,108 +191,126 @@ export default function HomePage() {
       {loading ? (
         <div className="text-center py-20 text-zinc-500 text-sm">Memuat data...</div>
       ) : posts.length > 0 ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {posts.map((post) => (
             <div
               key={post.id}
               onClick={() => router.push(`/questions/${post.id}`)}
-              className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 hover:border-brand-blue transition-all cursor-pointer"
+              className="group bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 hover:border-brand-blue hover:shadow-sm transition-all cursor-pointer"
             >
-              <div className="min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <h2 className="text-base font-bold text-zinc-900 dark:text-white hover:text-brand-blue line-clamp-2">
-                    {post.title}
-                  </h2>
+              {/* TOP ROW: title + badge */}
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="text-sm font-bold text-zinc-900 dark:text-white group-hover:text-brand-blue transition-colors line-clamp-2 leading-snug">
+                  {post.title}
+                </h2>
+                <div className="flex items-center gap-1.5 shrink-0">
                   {post.is_answered === 1 && (
-                    <span className="shrink-0 flex items-center gap-1 text-xs text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full font-medium">
+                    <span className="flex items-center gap-1 text-[11px] text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full font-semibold">
                       <CheckCircle className="h-3 w-3" />
                       Terjawab
                     </span>
                   )}
+                  {post.is_edited && (
+                    <span className="text-[11px] text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full italic">
+                      diedit
+                    </span>
+                  )}
                 </div>
-
-                <p className="mt-1.5 text-sm text-zinc-500 line-clamp-2">
-                  {post.body}
-                </p>
-
-                {post.tags.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {post.tags.map((tag) => (
-                      <span
-                        key={tag.id}
-                        className="text-xs px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-mono"
-                      >
-                        #{tag.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
 
-              <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400">
-                  <div className="flex items-center gap-1">
-                    <ArrowBigUp className="h-4 w-4" />
+              {/* BODY */}
+              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                {post.body}
+              </p>
+
+              {/* TAGS */}
+              {post.tags.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {post.tags.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="text-[11px] px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-mono"
+                    >
+                      #{tag.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* FOOTER */}
+              <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-2 flex-wrap">
+
+                {/* STATS */}
+                <div className="flex items-center gap-3 text-xs text-zinc-400 dark:text-zinc-500">
+                  <div className="flex items-center gap-1" title="Votes">
+                    <ArrowBigUp className="h-3.5 w-3.5" />
                     <span>{post.vote_score}</span>
                   </div>
 
                   <button
                     onClick={(e) => handleLike(e, post.id)}
+                    title="Like"
                     className={`flex items-center gap-1 transition-colors ${
                       post.user_has_liked
                         ? "text-red-500"
-                        : "text-zinc-500 dark:text-zinc-400 hover:text-red-400"
+                        : "text-zinc-400 dark:text-zinc-500 hover:text-red-400"
                     }`}
                   >
                     <Heart
-                      className="h-4 w-4"
+                      className="h-3.5 w-3.5"
                       fill={post.user_has_liked ? "currentColor" : "none"}
                     />
                     <span>{post.likes_count}</span>
                   </button>
 
-                  <div className="flex items-center gap-1">
-                    <Bookmark className="h-4 w-4" />
+                  <div className="flex items-center gap-1" title="Komentar">
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    <span>{post.comments_count}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1" title="Bookmark">
+                    <Bookmark className="h-3.5 w-3.5" />
                     <span>{post.bookmarks_count}</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Eye className="h-4 w-4" />
+
+                  <div className="flex items-center gap-1" title="Dilihat">
+                    <Eye className="h-3.5 w-3.5" />
                     <span>{post.view_count}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
+                {/* USER + CATEGORY + DATE */}
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 shrink-0">
                     {post.category.name}
                   </span>
-                  {post.is_edited && (
-                    <span className="text-xs text-zinc-400 italic">diedit</span>
-                  )}
-                  {post.user.avatar_url ? (
-                    <img
-                      src={`${AVATAR_BASE}${post.user.avatar_url}`}
-                      alt={post.user.username}
-                      className="w-5 h-5 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-5 h-5 rounded-full bg-brand-blue/20 flex items-center justify-center text-[10px] font-bold text-brand-blue uppercase">
-                      {post.user.username[0]}
-                    </div>
-                  )}
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                    <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                      {post.user.username}
+
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {post.user.avatar_url ? (
+                      <img
+                        src={`${AVATAR_BASE}${post.user.avatar_url}`}
+                        alt={post.user.username}
+                        className="w-5 h-5 rounded-full object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-brand-blue/20 flex items-center justify-center text-[10px] font-bold text-brand-blue uppercase shrink-0">
+                        {post.user.username[0]}
+                      </div>
+                    )}
+                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                      <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                        {post.user.username}
+                      </span>
+                      {" · "}
+                      {new Date(post.created_at).toLocaleDateString("id-ID", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </span>
-                    {" · "}
-                    {post.user.reputation_points} rep
-                    {" · "}
-                    {new Date(post.created_at).toLocaleDateString("id-ID", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
+                  </div>
                 </div>
+
               </div>
             </div>
           ))}
