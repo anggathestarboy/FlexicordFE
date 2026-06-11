@@ -22,7 +22,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
 
   const isAuthPage = pathname === '/login' || pathname === '/register';
   const isQuestionDetailPage = pathname.startsWith('/questions/');
-  const isHomePage = pathname === '/';
+  const isHomePage = pathname === '/' || pathname === '/homepage';
   
   const showRightSidebar = isHomePage || isQuestionDetailPage;
 
