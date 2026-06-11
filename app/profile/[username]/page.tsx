@@ -1,312 +1,8 @@
 "use client";
 
-import { Badge, Post, Role, UserDetail, UserDetailResponse, Comment } from "@/app/api/profile/[username]/ProfileType";
-import { Like, LikesResponse, LikeTargetType } from "@/app/api/likes-user/[username]/LikesUserType";
-import { Heart, MessageSquare, FileText, Clock, Filter, Inbox } from "lucide-react";
+import { Badge, Post, Role, UserDetail, UserDetailResponse, Comment, Like, LikeTargetType } from "@/app/api/profile/[username]/ProfileType";
+import { Heart, MessageSquare, FileText, Clock, Filter, Inbox, Bookmark as BookmarkIcon, Search } from "lucide-react";
 import { useEffect, useState } from "react";
-
-
-// ─── Mock fetch (ganti dengan fetch("/api/profile/[username]") di production) ───
-const MOCK: UserDetailResponse = {
-  message: "Success get user detail",
-  user: {
-    id: "33119eac-b64e-40bf-a8b3-81b5a4cd8ddf",
-    username: "anggaraa",
-    email: "anggara@gmail.com",
-    avatar_url: "avatars/F9EoDaAZHYyYrqD1xjStHmoGrADs448RP9Z6MKeA.jpg",
-    bio: "glory glory man utd @zahra",
-    reputation_points: 19,
-    level: 2,
-    is_banned: 0,
-    created_at: "2026-06-03T03:39:06.000000Z",
-    updated_at: "2026-06-08T20:10:38.000000Z",
-    posts_count: 39,
-    followers_count: 2,
-    following_count: 1,
-    badges_count: 3,
-    roles: [
-      {
-        id: "15a730e3",
-        name: "user",
-        permissions: "null",
-        created_at: "2026-06-03T03:38:52.000000Z",
-        pivot: { user_id: "33119eac", role_id: "15a730e3" },
-      },
-      {
-        id: "8f0a0807",
-        name: "admin",
-        permissions: '{"all": true}',
-        created_at: "2026-06-03T03:38:52.000000Z",
-        pivot: { user_id: "33119eac", role_id: "8f0a0807" },
-      },
-    ],
-    badges: [
-      {
-        id: "af7575bd",
-        name: "Expert",
-        description: "Mengumpulkan 5.000 poin reputasi.",
-        icon_url: null,
-        tier: "gold",
-        condition_type: "reputation_points",
-        condition_value: 1,
-        pivot: {
-          user_id: "33119eac",
-          badge_id: "af7575bd",
-          created_at: "2026-06-08T20:10:38.000000Z",
-          updated_at: "2026-06-08T20:10:38.000000Z",
-        },
-      },
-      {
-        id: "aa3d1cb7",
-        name: "Contributor",
-        description: "Telah membuat 10 postingan.",
-        icon_url: null,
-        tier: "bronze",
-        condition_type: "posts_count",
-        condition_value: 10,
-        pivot: {
-          user_id: "33119eac",
-          badge_id: "aa3d1cb7",
-          created_at: "2026-06-07T15:39:02.000000Z",
-          updated_at: "2026-06-07T15:39:02.000000Z",
-        },
-      },
-      {
-        id: "743283a9",
-        name: "Newcomer",
-        description: "Berhasil membuat postingan pertama.",
-        icon_url: null,
-        tier: "bronze",
-        condition_type: "posts_count",
-        condition_value: 32,
-        pivot: {
-          user_id: "33119eac",
-          badge_id: "743283a9",
-          created_at: "2026-06-07T15:39:02.000000Z",
-          updated_at: "2026-06-07T15:39:02.000000Z",
-        },
-      },
-    ],
-    posts: [
-      {
-        id: "20c2029f",
-        user_id: "33119eac",
-        category_id: "709bb650",
-        title: "Cara Belajar Laravel untuk Pemula",
-        body: "Laravel adalah framework PHP yang sangat populer dan mudah digunakan.",
-        status: "open",
-        view_count: 15,
-        vote_score: 2,
-        is_answered: 0,
-        accepted_answer_id: null,
-        created_at: "2026-06-03T17:12:45.000000Z",
-        updated_at: "2026-06-05T14:35:17.000000Z",
-        likes_count: 1,
-        bookmarks_count: 1,
-        comments_count: 1,
-        upvotes_count: 2,
-        downvotes_count: 1,
-        votes_count: 1,
-        user_has_liked: false,
-        user_has_bookmarked: false,
-        tags: [{ id: "e8ebde92", name: "Hot", slug: "hot", color: "red", usage_count: 21, created_at: "2026-06-04 06:57:32", pivot: { post_id: "20c2029f", tag_id: "e8ebde92" } }],
-        category: { id: "709bb650", name: "Tech", slug: "tech", description: null, parent_id: null, created_at: "2026-06-04 05:50:12" },
-        user: { id: "33119eac", username: "anggaraa", email: "anggara@gmail.com", avatar_url: null, bio: null, reputation_points: 19, level: 2, is_banned: 0, created_at: "2026-06-03T03:39:06.000000Z", updated_at: "2026-06-08T20:10:38.000000Z" },
-      },
-      {
-        id: "ce6d8b25",
-        user_id: "33119eac",
-        category_id: "169508a8",
-        title: "Cara Belajar React untuk Pemula",
-        body: "React adalah framework Javascript yang sangat populer dan mudah digunakan.",
-        status: "open",
-        view_count: 8,
-        vote_score: -3,
-        is_answered: 0,
-        accepted_answer_id: null,
-        created_at: "2026-06-03T17:23:29.000000Z",
-        updated_at: "2026-06-06T19:30:10.000000Z",
-        likes_count: 1,
-        bookmarks_count: 0,
-        comments_count: 0,
-        upvotes_count: 0,
-        downvotes_count: 3,
-        votes_count: -3,
-        user_has_liked: false,
-        user_has_bookmarked: false,
-        tags: [],
-        category: { id: "169508a8", name: "Sekawan Media", slug: "sekawan-media", description: null, parent_id: "709bb650", created_at: "2026-06-04 05:51:41" },
-        user: { id: "33119eac", username: "anggaraa", email: "anggara@gmail.com", avatar_url: null, bio: null, reputation_points: 19, level: 2, is_banned: 0, created_at: "2026-06-03T03:39:06.000000Z", updated_at: "2026-06-08T20:10:38.000000Z" },
-      },
-    ],
-  },
-  is_following: false,
-};
-
-// Mock data untuk likes
-const MOCK_LIKES: LikesResponse = {
-  likes: [
-    {
-      id: "0e5bce79-4205-4ad7-8ba1-6b44e3e38273",
-      user_id: "33119eac-b64e-40bf-a8b3-81b5a4cd8ddf",
-      target_id: "0ef45316-42a1-4f6a-a080-76637765e7d4",
-      target_type: "comment",
-      created_at: "2026-06-05 02:09:33",
-      comment_detail: {
-        id: "0ef45316-42a1-4f6a-a080-76637765e7d4",
-        post_id: "20c2029f",
-        user_id: "other-user-id",
-        body: "Terima kasih tutorialnya sangat membantu!",
-        created_at: "2026-06-04T10:00:00.000000Z",
-        user: {
-          id: "other-user-id",
-          username: "john_doe",
-          avatar_url: "https://randomuser.me/api/portraits/men/2.jpg"
-        },
-        post: {
-          id: "20c2029f",
-          title: "Cara Belajar Laravel untuk Pemula"
-        }
-      }
-    },
-    {
-      id: "11124e06-42f4-48ae-979e-2452892ffed4",
-      user_id: "33119eac-b64e-40bf-a8b3-81b5a4cd8ddf",
-      target_id: "1c28c7c5-c0d9-45c4-b966-60af97b03eea",
-      target_type: "post",
-      created_at: "2026-06-07 09:18:29",
-      post_detail: {
-        id: "1c28c7c5-c0d9-45c4-b966-60af97b03eea",
-        title: "Tips Optimalisasi Database MySQL",
-        body: "Berikut adalah tips untuk mengoptimalkan performa database MySQL...",
-        category: { name: "Database" },
-        created_at: "2026-06-06T08:00:00.000000Z",
-        user: {
-          id: "user123",
-          username: "database_expert",
-          avatar_url: null
-        }
-      }
-    },
-    {
-      id: "eff3403c-d5f6-430f-a339-36cca69ebc8a",
-      user_id: "33119eac-b64e-40bf-a8b3-81b5a4cd8ddf",
-      target_id: "20c2029f-27ca-4610-b46f-3405f6ef2dc0",
-      target_type: "post",
-      created_at: "2026-06-05 02:24:31",
-      post_detail: {
-        id: "20c2029f-27ca-4610-b46f-3405f6ef2dc0",
-        title: "Cara Belajar Laravel untuk Pemula",
-        body: "Laravel adalah framework PHP yang sangat populer dan mudah digunakan...",
-        category: { name: "Tech" },
-        created_at: "2026-06-03T17:12:45.000000Z",
-        user: {
-          id: "33119eac-b64e-40bf-a8b3-81b5a4cd8ddf",
-          username: "anggaraa",
-          avatar_url: null
-        }
-      }
-    },
-    {
-      id: "fb9e8286-fa17-4e31-8a1f-36469613153c",
-      user_id: "33119eac-b64e-40bf-a8b3-81b5a4cd8ddf",
-      target_id: "4b122d63-e6e8-4f14-9bb0-861848dca24d",
-      target_type: "comment",
-      created_at: "2026-06-07 09:39:35",
-      comment_detail: {
-        id: "4b122d63-e6e8-4f14-9bb0-861848dca24d",
-        post_id: "ce6d8b25",
-        user_id: "another-user",
-        body: "Penjelasan Reactnya sangat jelas dan mudah dipahami!",
-        created_at: "2026-06-07T07:00:00.000000Z",
-        user: {
-          id: "another-user",
-          username: "react_enthusiast",
-          avatar_url: "https://randomuser.me/api/portraits/women/1.jpg"
-        },
-        post: {
-          id: "ce6d8b25",
-          title: "Cara Belajar React untuk Pemula"
-        }
-      }
-    },
-  ],
-};
-
-// Tambahkan MOCK untuk user lain
-const MOCK_OTHER_USER: UserDetailResponse = {
-  message: "Success get user detail",
-  user: {
-    id: "other-user-id",
-    username: "johndoe",
-    email: "john@example.com",
-    avatar_url: "https://randomuser.me/api/portraits/men/1.jpg",
-    bio: "Software developer from Jakarta",
-    reputation_points: 45,
-    level: 3,
-    is_banned: 0,
-    created_at: "2025-01-15T03:39:06.000000Z",
-    updated_at: "2026-06-08T20:10:38.000000Z",
-    posts_count: 25,
-    followers_count: 15,
-    following_count: 8,
-    badges_count: 5,
-    roles: [
-      {
-        id: "15a730e3",
-        name: "user",
-        permissions: "null",
-        created_at: "2025-01-15T03:38:52.000000Z",
-        pivot: { user_id: "other-user-id", role_id: "15a730e3" },
-      },
-    ],
-    badges: [
-      {
-        id: "aa3d1cb7",
-        name: "Contributor",
-        description: "Telah membuat 10 postingan.",
-        icon_url: null,
-        tier: "bronze",
-        condition_type: "posts_count",
-        condition_value: 10,
-        pivot: {
-          user_id: "other-user-id",
-          badge_id: "aa3d1cb7",
-          created_at: "2025-02-07T15:39:02.000000Z",
-          updated_at: "2025-02-07T15:39:02.000000Z",
-        },
-      },
-    ],
-    posts: [
-      {
-        id: "post-other-1",
-        user_id: "other-user-id",
-        category_id: "709bb650",
-        title: "Tips Belajar Programming untuk Pemula",
-        body: "Berikut adalah tips-tips yang bisa membantu pemula dalam belajar programming...",
-        status: "open",
-        view_count: 120,
-        vote_score: 15,
-        is_answered: 1,
-        accepted_answer_id: null,
-        created_at: "2025-01-20T10:00:00.000000Z",
-        updated_at: "2025-01-20T10:00:00.000000Z",
-        likes_count: 10,
-        bookmarks_count: 5,
-        comments_count: 3,
-        upvotes_count: 15,
-        downvotes_count: 0,
-        votes_count: 15,
-        user_has_liked: false,
-        user_has_bookmarked: false,
-        tags: [{ id: "tag1", name: "Programming", slug: "programming", color: "blue", usage_count: 50, created_at: "2025-01-20 10:00:00", pivot: { post_id: "post-other-1", tag_id: "tag1" } }],
-        category: { id: "709bb650", name: "Tech", slug: "tech", description: null, parent_id: null, created_at: "2025-01-20 10:00:00" },
-        user: { id: "other-user-id", username: "johndoe", email: "john@example.com", avatar_url: "https://randomuser.me/api/portraits/men/1.jpg", bio: "Software developer", reputation_points: 45, level: 3, is_banned: 0, created_at: "2025-01-15T03:39:06.000000Z", updated_at: "2025-01-15T03:39:06.000000Z" },
-      },
-    ],
-  },
-  is_following: false,
-};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -456,6 +152,32 @@ function BadgeCard({ badge }: { badge: Badge }) {
   );
 }
 
+function StatusBadge({ status }: { status: Post["status"] }) {
+  const map: Record<Post["status"], { label: string; color: string }> = {
+    open: { label: "Terbuka", color: "#2563eb" },
+    answered: { label: "Terjawab", color: "#16a34a" },
+    closed: { label: "Ditutup", color: "#6b7280" },
+  };
+  const { label, color } = map[status] ?? map.open;
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "2px 10px",
+        borderRadius: "999px",
+        fontSize: "11px",
+        fontWeight: 600,
+        letterSpacing: "0.04em",
+        color: "#fff",
+        background: color,
+        textTransform: "uppercase",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 // PostCard component
 function PostCard({ 
   post, 
@@ -533,7 +255,7 @@ function PostCard({
               {post.category.name}
             </span>
 
-            {post.tags.map(tag => (
+            {post.tags && post.tags.map(tag => (
               <span key={tag.id} style={{
                 fontSize: 11, padding: "2px 8px", borderRadius: 20,
                 background: "#FEE2E2", color: "#991B1B", fontWeight: 500,
@@ -550,9 +272,9 @@ function PostCard({
           <div style={{ display: "flex", gap: 14, marginTop: 8 }}>
             {[
               { icon: "👁", val: post.view_count, label: "views" },
-              { icon: "💬", val: post.comments_count, label: "komentar" },
-              { icon: "❤️", val: post.likes_count, label: "suka" },
-              { icon: "🔖", val: post.bookmarks_count, label: "simpan" },
+              { icon: "💬", val: post.comments_count || 0, label: "komentar" },
+              { icon: "❤️", val: post.likes_count || 0, label: "suka" },
+              { icon: "🔖", val: post.bookmarks_count || 0, label: "simpan" },
             ].map(({ icon, val, label }) => (
               <span key={label} style={{ fontSize: 11, color: "#94A3B8", display: "flex", alignItems: "center", gap: 3 }}>
                 {icon} {val}
@@ -609,7 +331,7 @@ function PostCard({
           }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: "0 0 12px 0", fontSize: 18, fontWeight: 600 }}>Hapus Postingan?</h3>
             <p style={{ margin: "0 0 20px 0", color: "#64748B", fontSize: 14 }}>
-              Apakah Anda yakin ingin menghapus postingan "{post.title}"? Tindakan ini tidak dapat dibatalkan.
+              Apakah Anda yakin ingin menghapus postingan {post.title}? Tindakan ini tidak dapat dibatalkan.
             </p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
               <button
@@ -647,7 +369,7 @@ function PostCard({
   );
 }
 
-// LikeCard component with detailed content
+// LikeCard component with detailed content (menggunakan data dari API profile)
 function LikeCard({ like, index }: { like: Like; index: number }) {
   const [showDetail, setShowDetail] = useState(false);
   
@@ -823,62 +545,150 @@ function EmptyState({ label, icon: Icon }: { label: string; icon?: React.Element
 
 export default function ProfilePage({ username }: { username?: string }) {
   const [data, setData] = useState<UserDetailResponse | null>(null);
-  const [likesData, setLikesData] = useState<LikesResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingLikes, setLoadingLikes] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"posts" | "badges" | "likes">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "badges" | "likes" | "bookmarks">("posts");
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
   const [likesFilter, setLikesFilter] = useState<"all" | "post" | "comment">("all");
+
+  // Fetch data dari API profile saja
+  const fetchProfileData = async (targetUsername: string) => {
+    const response = await fetch(`/api/profile/${targetUsername}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch profile: ${response.status}`);
+    }
+    const data: UserDetailResponse = await response.json();
+    return data;
+  };
 
   useEffect(() => {
     async function load() {
       try {
         setLoading(true);
-        setLoadingLikes(true);
+        
+        // TODO: Ganti dengan logic mendapatkan current user ID dari auth context/session
         setCurrentUserId("33119eac-b64e-40bf-a8b3-81b5a4cd8ddf");
         
-        await new Promise(r => setTimeout(r, 600));
+        // Gunakan username dari props
+        const targetUsername = username || "current-user"; // Ganti dengan logic default yang sesuai
         
-        let json;
-        if (username === "johndoe") {
-          json = MOCK_OTHER_USER;
-        } else {
-          json = MOCK;
-        }
+        // Fetch data dari API profile saja
+        const profileData = await fetchProfileData(targetUsername);
         
-        setData(json);
-        setIsFollowing(json.is_following);
-        
-        // Load likes data
-        await new Promise(r => setTimeout(r, 500));
-        setLikesData(MOCK_LIKES);
+        setData(profileData);
+        setIsFollowing(profileData.is_following);
       } catch (err) {
         setError("Gagal memuat profil.");
         console.error(err);
       } finally {
         setLoading(false);
-        setLoadingLikes(false);
       }
     }
     load();
   }, [username]);
 
-  const handleDeletePost = (postId: string) => {
-    if (data) {
-      setData({
-        ...data,
-        user: {
-          ...data.user,
-          posts: data.user.posts.filter(post => post.id !== postId),
-          posts_count: data.user.posts_count - 1,
-        },
+  const handleDeletePost = async (postId: string) => {
+    try {
+      // Panggil API delete post
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete post');
+      }
+      
+      // Update local state setelah delete berhasil
+      if (data) {
+        setData({
+          ...data,
+          user: {
+            ...data.user,
+            posts: data.user.posts.filter(post => post.id !== postId),
+            posts_count: data.user.posts_count - 1,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Gagal menghapus postingan:", error);
+      alert("Gagal menghapus postingan. Silakan coba lagi.");
     }
   };
 
-  const likes = likesData?.likes ?? [];
+  const handleRemoveBookmark = async (bookmarkId: string, postId: string) => {
+    try {
+      // Panggil API delete bookmark
+      const response = await fetch(`/api/bookmarks/${bookmarkId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to remove bookmark');
+      }
+      
+      // Update local state - hapus bookmark dari daftar bookmarks di user
+      if (data) {
+        setData({
+          ...data,
+          user: {
+            ...data.user,
+            bookmarks: data.user.bookmarks.filter(b => b.id !== bookmarkId),
+            bookmarks_count: data.user.bookmarks_count - 1,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Gagal menghapus bookmark:", error);
+      alert("Gagal menghapus bookmark. Silakan coba lagi.");
+    }
+  };
+
+  const handleToggleFollow = async () => {
+    try {
+      if (isFollowing) {
+        // Unfollow
+        const response = await fetch(`/api/follow/${data?.user.id}`, {
+          method: 'DELETE',
+        });
+        if (response.ok) {
+          setIsFollowing(false);
+          if (data) {
+            setData({
+              ...data,
+              user: {
+                ...data.user,
+                followers_count: data.user.followers_count - 1,
+              },
+            });
+          }
+        }
+      } else {
+        // Follow
+        const response = await fetch(`/api/follow/${data?.user.id}`, {
+          method: 'POST',
+        });
+        if (response.ok) {
+          setIsFollowing(true);
+          if (data) {
+            setData({
+              ...data,
+              user: {
+                ...data.user,
+                followers_count: data.user.followers_count + 1,
+              },
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error toggling follow:", error);
+      alert("Gagal mengubah status follow. Silakan coba lagi.");
+    }
+  };
+
+  // Mendapatkan data likes dari response API
+  const likes = data?.user?.likes || [];
   const filteredLikes = likesFilter === "all" 
     ? likes 
     : likes.filter(l => l.target_type === likesFilter);
@@ -974,7 +784,7 @@ export default function ProfilePage({ username }: { username?: string }) {
 
           {currentUserId !== user.id && (
             <button
-              onClick={() => setIsFollowing(f => !f)}
+              onClick={handleToggleFollow}
               style={{
                 alignSelf: "flex-start",
                 padding: "8px 20px",
@@ -1006,13 +816,14 @@ export default function ProfilePage({ username }: { username?: string }) {
         </div>
       </div>
 
-      {/* Tabs - Now with 3 tabs */}
+      {/* Tabs */}
       <div style={{
         display: "flex", gap: 0,
         borderBottom: "2px solid #E2E8F0",
         marginBottom: 20,
+        overflowX: "auto",
       }}>
-        {(["posts", "badges", "likes"] as const).map(tab => (
+        {(["posts", "badges", "likes", "bookmarks"] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -1028,14 +839,17 @@ export default function ProfilePage({ username }: { username?: string }) {
               display: "flex",
               alignItems: "center",
               gap: 6,
+              whiteSpace: "nowrap",
             }}
           >
             {tab === "posts" && <FileText size={14} />}
             {tab === "badges" && <span>🏅</span>}
             {tab === "likes" && <Heart size={14} />}
+            {tab === "bookmarks" && <BookmarkIcon size={14} />}
             {tab === "posts" ? `Postingan (${user.posts_count})` : 
              tab === "badges" ? `Lencana (${user.badges_count})` : 
-             `Like (${likes.length})`}
+             tab === "likes" ? `Like (${likes.length})` :
+             `Bookmark (${user.bookmarks_count})`}
           </button>
         ))}
       </div>
@@ -1067,10 +881,9 @@ export default function ProfilePage({ username }: { username?: string }) {
         </div>
       )}
 
-      {/* Likes Tab */}
+      {/* Likes Tab - Menggunakan data dari user.likes */}
       {activeTab === "likes" && (
         <div>
-          {/* Filter buttons for likes */}
           <div style={{
             display: "flex", gap: 6, marginBottom: 20,
             background: "#F8FAFC", borderRadius: 10,
@@ -1116,28 +929,102 @@ export default function ProfilePage({ username }: { username?: string }) {
             ))}
           </div>
 
-          {/* Likes content */}
-          {loadingLikes ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {[1, 2, 3].map(i => (
-                <div key={i} style={{
-                  borderRadius: 12,
-                  border: "1px solid #E2E8F0",
-                  padding: "16px 18px",
-                  background: "#fff",
-                }}>
-                  <div style={{ height: 12, width: "40%", borderRadius: 6, background: "#F1F5F9", marginBottom: 8 }} />
-                  <div style={{ height: 10, width: "65%", borderRadius: 6, background: "#F1F5F9" }} />
-                </div>
-              ))}
-            </div>
-          ) : filteredLikes.length === 0 ? (
+          {filteredLikes.length === 0 ? (
             <EmptyState label="Belum ada aktivitas like." icon={Inbox} />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {filteredLikes.map((like, i) => (
                 <LikeCard key={like.id} like={like} index={i} />
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Bookmarks Tab - Menggunakan data dari user.bookmarks */}
+      {activeTab === "bookmarks" && (
+        <div>
+          {user.bookmarks?.length === 0 ? (
+            <EmptyState label="Belum ada bookmark." icon={BookmarkIcon} />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {user.bookmarks?.map((bookmark) => {
+                const { post } = bookmark;
+                const [isRemoving, setIsRemoving] = useState(false);
+                
+                const handleRemove = async () => {
+                  setIsRemoving(true);
+                  await handleRemoveBookmark(bookmark.id, post.id);
+                  setIsRemoving(false);
+                };
+                
+                return (
+                  <div
+                    key={bookmark.id}
+                    style={{
+                      background: "#ffffff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "14px",
+                      padding: "18px 20px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "10px",
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+                      transition: "all 0.15s ease",
+                      position: "relative",
+                      opacity: isRemoving ? 0.5 : 1,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                        <StatusBadge status={post.status} />
+                        {post.is_answered === 1 && (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "#16a34a", fontWeight: 600 }}>
+                            ✓ Ada Jawaban
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={handleRemove}
+                        disabled={isRemoving}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: isRemoving ? "not-allowed" : "pointer",
+                          color: "#9ca3af",
+                          fontSize: "18px",
+                          padding: "2px 4px",
+                          borderRadius: "6px",
+                          transition: "color 0.1s",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {isRemoving ? "..." : "🔖"}
+                      </button>
+                    </div>
+
+                    <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#111827", lineHeight: 1.4 }}>
+                      {post.title}
+                    </h3>
+
+                    <p style={{ margin: 0, fontSize: "13px", color: "#6b7280", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {post.body}
+                    </p>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", paddingTop: "4px", borderTop: "1px solid #f3f4f6", flexWrap: "wrap" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "#6b7280" }}>
+                        👁 {post.view_count} dilihat
+                      </span>
+                      <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "#6b7280" }}>
+                        ▲ {post.vote_score} suara
+                      </span>
+                      <span style={{ fontSize: "11px", color: "#9ca3af", marginLeft: "auto" }}>
+                        Disimpan {formatDate(bookmark.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
