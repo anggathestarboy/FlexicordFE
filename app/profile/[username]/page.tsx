@@ -14,6 +14,10 @@ import {
   Heart,
   MessageSquare,
   ChevronRight,
+  Ban,
+  ShieldAlert,
+  Flag,
+  AlertTriangle,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 
@@ -377,6 +381,47 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("posts");
 
+  // Auth & Ban states
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [showBanForm, setShowBanForm] = useState(false);
+  const [banReason, setBanReason] = useState("");
+  const [banNotes, setBanNotes] = useState("");
+  const [isBanning, setIsBanning] = useState(false);
+  const [banError, setBanError] = useState<string | null>(null);
+
+  // Report states
+  const [showReportForm, setShowReportForm] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDescription, setReportDescription] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportSuccess, setReportSuccess] = useState(false);
+
+  // Warning states
+  const [showWarningForm, setShowWarningForm] = useState(false);
+  const [warningReason, setWarningReason] = useState("");
+  const [warningNotes, setWarningNotes] = useState("");
+  const [isWarning, setIsWarning] = useState(false);
+  const [warningError, setWarningError] = useState<string | null>(null);
+  const [warningSuccess, setWarningSuccess] = useState(false);
+
+  // Fetch current user
+  useEffect(() => {
+    fetch("/api/me")
+      .then((res) => {
+        if (!res.ok) throw new Error("Not logged in");
+        return res.json();
+      })
+      .then((data) => {
+        if (data.user?.primary_role?.name) {
+          setCurrentUserRole(data.user.primary_role.name);
+        }
+      })
+      .catch(() => {
+        setCurrentUserRole(null);
+      });
+  }, []);
+
   useEffect(() => {
     if (!username) return;
     setLoading(true);
@@ -389,6 +434,120 @@ export default function ProfilePage() {
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [username]);
+
+  const handleBan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!banReason.trim()) return;
+    
+    setIsBanning(true);
+    setBanError(null);
+
+    try {
+      const res = await fetch(`/api/banned/${username}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: banReason,
+          notes: banNotes.trim() ? banNotes : null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Gagal membanned pengguna.");
+      }
+
+      // Update UI manually
+      if (data) {
+        setData({
+          ...data,
+          user: { ...data.user, is_banned: 1 },
+        });
+      }
+      setShowBanForm(false);
+      setBanReason("");
+      setBanNotes("");
+    } catch (err: any) {
+      setBanError(err.message);
+    } finally {
+      setIsBanning(false);
+    }
+  };
+
+  const handleReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reportReason.trim() || !data?.user.id) return;
+    
+    setIsReporting(true);
+    setReportError(null);
+    setReportSuccess(false);
+
+    try {
+      const res = await fetch(`/api/reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target_id: data.user.id,
+          reason: reportReason,
+          description: reportDescription.trim() ? reportDescription : null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Gagal melaporkan pengguna.");
+      }
+
+      setReportSuccess(true);
+      setTimeout(() => {
+        setShowReportForm(false);
+        setReportSuccess(false);
+        setReportReason("");
+        setReportDescription("");
+      }, 2000);
+    } catch (err: any) {
+      setReportError(err.message);
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
+  const handleWarning = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!warningReason.trim()) return;
+    
+    setIsWarning(true);
+    setWarningError(null);
+    setWarningSuccess(false);
+
+    try {
+      const res = await fetch(`/api/warnings/${username}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: warningReason,
+          notes: warningNotes.trim() ? warningNotes : null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Gagal memberikan warning.");
+      }
+
+      setWarningSuccess(true);
+      setTimeout(() => {
+        setShowWarningForm(false);
+        setWarningSuccess(false);
+        setWarningReason("");
+        setWarningNotes("");
+      }, 2000);
+    } catch (err: any) {
+      setWarningError(err.message);
+    } finally {
+      setIsWarning(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -430,9 +589,9 @@ export default function ProfilePage() {
   return (
     <div className="space-y-5">
       {/* ── Hero Card ─────────────────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
         {/* Banner */}
-        <div className="h-28 bg-gradient-to-r from-brand-blue to-sky-500" />
+        <div className="h-28 bg-gradient-to-r from-brand-blue to-sky-500 rounded-t-2xl" />
 
         <div className="px-5 pb-5 relative">
           {/* Avatar row */}
@@ -453,8 +612,8 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* Follow button */}
-            <div className="pt-17">
+            {/* Actions: Follow, Report & Ban */}
+            <div className="pt-16 flex flex-col items-end gap-2 relative">
               <button
                 className={`text-xs font-semibold px-4 py-2 rounded-lg border transition-all ${
                   is_following
@@ -464,6 +623,228 @@ export default function ProfilePage() {
               >
                 {is_following ? "Mengikuti" : "+ Ikuti"}
               </button>
+
+              <div className="flex items-center gap-2">
+                {/* Tombol Laporkan (Selalu Muncul Jika Bukan Diri Sendiri, tapi untuk sekarang muncul selalu) */}
+                <button
+                  onClick={() => {
+                    setShowReportForm(!showReportForm);
+                    if (showBanForm) setShowBanForm(false);
+                    if (showWarningForm) setShowWarningForm(false);
+                  }}
+                  className="text-[10px] font-semibold px-3 py-1 rounded border border-orange-200 dark:border-orange-900/50 text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors flex items-center gap-1"
+                >
+                  <Flag className="h-3 w-3" />
+                  Laporkan
+                </button>
+
+                {(currentUserRole === "admin" || currentUserRole === "mod" || currentUserRole === "moderator") && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setShowWarningForm(!showWarningForm);
+                        if (showReportForm) setShowReportForm(false);
+                        if (showBanForm) setShowBanForm(false);
+                      }}
+                      className="text-[10px] font-semibold px-3 py-1 rounded border border-yellow-200 dark:border-yellow-900/50 text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors flex items-center gap-1"
+                    >
+                      <AlertTriangle className="h-3 w-3" />
+                      Warning
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowBanForm(!showBanForm);
+                        if (showReportForm) setShowReportForm(false);
+                        if (showWarningForm) setShowWarningForm(false);
+                      }}
+                      className="text-[10px] font-semibold px-3 py-1 rounded border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors flex items-center gap-1"
+                    >
+                      <Ban className="h-3 w-3" />
+                      {user.is_banned ? "Unban Pengguna" : "Ban Pengguna"}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Ban Form Popover */}
+              {showBanForm && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl p-3 z-10 text-left">
+                  <h4 className="text-xs font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5 mb-3">
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    Ban Pengguna
+                  </h4>
+                  <form onSubmit={handleBan} className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 mb-1 block uppercase tracking-wider">
+                        Alasan <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={banReason}
+                        onChange={(e) => setBanReason(e.target.value)}
+                        maxLength={255}
+                        placeholder="Alasan ban..."
+                        className="w-full text-xs px-2.5 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-red-500 dark:text-white transition-shadow"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 mb-1 block uppercase tracking-wider">
+                        Catatan (opsional)
+                      </label>
+                      <textarea
+                        value={banNotes}
+                        onChange={(e) => setBanNotes(e.target.value)}
+                        maxLength={500}
+                        placeholder="Catatan internal..."
+                        className="w-full text-xs px-2.5 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-red-500 min-h-[60px] resize-none dark:text-white transition-shadow"
+                      />
+                    </div>
+                    {banError && (
+                      <p className="text-[10px] text-red-500 font-medium">{banError}</p>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={isBanning || !banReason.trim()}
+                      className="w-full text-[11px] font-bold px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-1 flex justify-center"
+                    >
+                      {isBanning ? (
+                        <span className="flex items-center gap-1.5">
+                          <span className="animate-spin h-3 w-3 border-2 border-white/20 border-t-white rounded-full" />
+                          Memproses...
+                        </span>
+                      ) : (
+                        "Konfirmasi Ban"
+                      )}
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* Report Form Popover */}
+              {showReportForm && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl p-3 z-20 text-left">
+                  <h4 className="text-xs font-bold text-orange-600 dark:text-orange-400 flex items-center gap-1.5 mb-3">
+                    <Flag className="h-3.5 w-3.5" />
+                    Laporkan Pengguna
+                  </h4>
+                  {reportSuccess ? (
+                    <div className="text-center py-4 space-y-2">
+                      <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto" />
+                      <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Laporan Terkirim</p>
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400">Terima kasih atas laporan Anda.</p>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleReport} className="space-y-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 mb-1 block uppercase tracking-wider">
+                          Alasan <span className="text-orange-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={reportReason}
+                          onChange={(e) => setReportReason(e.target.value)}
+                          maxLength={255}
+                          placeholder="Alasan laporan..."
+                          className="w-full text-xs px-2.5 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-orange-500 dark:text-white transition-shadow"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 mb-1 block uppercase tracking-wider">
+                          Deskripsi (opsional)
+                        </label>
+                        <textarea
+                          value={reportDescription}
+                          onChange={(e) => setReportDescription(e.target.value)}
+                          maxLength={500}
+                          placeholder="Deskripsi detail..."
+                          className="w-full text-xs px-2.5 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-orange-500 min-h-[60px] resize-none dark:text-white transition-shadow"
+                        />
+                      </div>
+                      {reportError && (
+                        <p className="text-[10px] text-red-500 font-medium">{reportError}</p>
+                      )}
+                      <button
+                        type="submit"
+                        disabled={isReporting || !reportReason.trim()}
+                        className="w-full text-[11px] font-bold px-3 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-1 flex justify-center"
+                      >
+                        {isReporting ? (
+                          <span className="flex items-center gap-1.5">
+                            <span className="animate-spin h-3 w-3 border-2 border-white/20 border-t-white rounded-full" />
+                            Mengirim...
+                          </span>
+                        ) : (
+                          "Kirim Laporan"
+                        )}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+              {/* Warning Form Popover */}
+              {showWarningForm && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl p-3 z-20 text-left">
+                  <h4 className="text-xs font-bold text-yellow-600 dark:text-yellow-400 flex items-center gap-1.5 mb-3">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Beri Warning
+                  </h4>
+                  {warningSuccess ? (
+                    <div className="text-center py-4 space-y-2">
+                      <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto" />
+                      <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Warning Terkirim</p>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleWarning} className="space-y-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 mb-1 block uppercase tracking-wider">
+                          Alasan <span className="text-yellow-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={warningReason}
+                          onChange={(e) => setWarningReason(e.target.value)}
+                          maxLength={255}
+                          placeholder="Alasan warning..."
+                          className="w-full text-xs px-2.5 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-yellow-500 dark:text-white transition-shadow"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 mb-1 block uppercase tracking-wider">
+                          Catatan (opsional)
+                        </label>
+                        <textarea
+                          value={warningNotes}
+                          onChange={(e) => setWarningNotes(e.target.value)}
+                          maxLength={500}
+                          placeholder="Catatan internal..."
+                          className="w-full text-xs px-2.5 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-yellow-500 min-h-[60px] resize-none dark:text-white transition-shadow"
+                        />
+                      </div>
+                      {warningError && (
+                        <p className="text-[10px] text-red-500 font-medium">{warningError}</p>
+                      )}
+                      <button
+                        type="submit"
+                        disabled={isWarning || !warningReason.trim()}
+                        className="w-full text-[11px] font-bold px-3 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-zinc-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-1 flex justify-center"
+                      >
+                        {isWarning ? (
+                          <span className="flex items-center gap-1.5">
+                            <span className="animate-spin h-3 w-3 border-2 border-zinc-900/20 border-t-zinc-900 rounded-full" />
+                            Mengirim...
+                          </span>
+                        ) : (
+                          "Kirim Warning"
+                        )}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
