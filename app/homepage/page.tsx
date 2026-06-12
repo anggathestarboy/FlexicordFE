@@ -81,7 +81,30 @@ function HomePageContent() {
 
       const res = await fetch(`/api/posts?${params.toString()}`);
       const data: ApiResponse = await res.json();
-      setPosts(data.data ?? []);
+      const fetchedPosts = data.data ?? [];
+
+      try {
+        const bookmarksRes = await fetch("/api/bookmark");
+        if (bookmarksRes.ok) {
+          const bookmarksJson = await bookmarksRes.json();
+          const bookmarksList = bookmarksJson.data ?? [];
+          const bookmarkMap = new Map<string, string>();
+          bookmarksList.forEach((b: any) => {
+            if (b.post_id && b.id) {
+              bookmarkMap.set(b.post_id, b.id);
+            }
+          });
+          fetchedPosts.forEach((post) => {
+            if (bookmarkMap.has(post.id)) {
+              post.bookmark_id = bookmarkMap.get(post.id);
+            }
+          });
+        }
+      } catch (err) {
+        console.error("Gagal mencocokkan bookmark_id:", err);
+      }
+
+      setPosts(fetchedPosts);
       setLastPage(data.last_page);
       setTotal(data.total);
     } catch (error) {

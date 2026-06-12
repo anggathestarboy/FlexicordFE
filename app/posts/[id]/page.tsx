@@ -97,6 +97,199 @@ export default function QuestionDetailPage({
   const [showQuestionCommentInput, setShowQuestionCommentInput] =
     useState(false);
 
+  // ─── Like / Unlike handler ────────────────────────────────────────────────────
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!post) return;
+
+    const isLiked = post.user_has_liked;
+    const prevPost = post;
+
+    // Optimistic update
+    setPost((prev) =>
+      prev
+        ? {
+            ...prev,
+            likes_count: isLiked ? prev.likes_count - 1 : prev.likes_count + 1,
+            user_has_liked: !isLiked,
+          }
+        : prev
+    );
+
+    try {
+      if (isLiked) {
+        const res = await fetch("/api/unlikes", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target_id: post.id }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          console.error("Unlike error:", data.message);
+          setPost(prevPost);
+        }
+      } else {
+        const res = await fetch("/api/likes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target_id: post.id }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          console.error("Like error:", data.message);
+          setPost(prevPost);
+        }
+      }
+    } catch (error) {
+      console.error("Like/Unlike error:", error);
+      setPost(prevPost);
+    }
+  };
+
+  // ─── Bookmark / Unbookmark handler ────────────────────────────────────────────
+  const handleBookmark = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!post) return;
+
+    const isBookmarked = post.user_has_bookmarked;
+    const prevPost = post;
+
+    // Optimistic update
+    setPost((prev) =>
+      prev
+        ? {
+            ...prev,
+            bookmarks_count: isBookmarked
+              ? prev.bookmarks_count - 1
+              : prev.bookmarks_count + 1,
+            user_has_bookmarked: !isBookmarked,
+            bookmark_id: isBookmarked ? null : prev.bookmark_id,
+          }
+        : prev
+    );
+
+    try {
+      if (isBookmarked) {
+        const bookmarkId = prevPost.bookmark_id;
+        if (!bookmarkId) {
+          console.error("Unbookmark error: bookmark_id tidak ditemukan");
+          setPost(prevPost);
+          return;
+        }
+        const res = await fetch(`/api/bookmark/${bookmarkId}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          console.error("Unbookmark error:", data.message);
+          setPost(prevPost);
+        }
+      } else {
+        const res = await fetch("/api/bookmark", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ post_id: post.id }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          console.error("Bookmark error:", data.message);
+          setPost(prevPost);
+          return;
+        }
+        const data = await res.json();
+        const newBookmarkId = data.data?.id ?? data.data ?? null;
+        setPost((prev) =>
+          prev ? { ...prev, bookmark_id: newBookmarkId } : prev
+        );
+      }
+    } catch (error) {
+      console.error("Bookmark/Unbookmark error:", error);
+      setPost(prevPost);
+    }
+  };
+
+  // ─── Comment Like / Unlike handler ────────────────────────────────────────────
+  const handleCommentLike = async (e: React.MouseEvent, commentId: string) => {
+    e.stopPropagation();
+    if (!post) return;
+
+    let isLiked = false;
+    let targetComment: Comment | undefined = post.comments.find((c) => c.id === commentId);
+
+    if (!targetComment) {
+      for (const c of post.comments) {
+        if (c.replies) {
+          const found = c.replies.find((r) => r.id === commentId);
+          if (found) {
+            targetComment = found;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!targetComment) return;
+
+    isLiked = targetComment.user_has_liked;
+    const prevPost = post;
+
+    // Optimistic update
+    setPost((prev) => {
+      if (!prev) return null;
+
+      const updateComment = (c: Comment): Comment => {
+        if (c.id === commentId) {
+          return {
+            ...c,
+            likes_count: isLiked ? c.likes_count - 1 : c.likes_count + 1,
+            user_has_liked: !isLiked,
+          };
+        }
+        if (c.replies && c.replies.length > 0) {
+          return {
+            ...c,
+            replies: c.replies.map(updateComment),
+          };
+        }
+        return c;
+      };
+
+      return {
+        ...prev,
+        comments: prev.comments.map(updateComment),
+      };
+    });
+
+    try {
+      if (isLiked) {
+        const res = await fetch("/api/unlikes", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target_id: commentId }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          console.error("Unlike comment error:", data.message);
+          setPost(prevPost);
+        }
+      } else {
+        const res = await fetch("/api/likes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target_id: commentId }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          console.error("Like comment error:", data.message);
+          setPost(prevPost);
+        }
+      }
+    } catch (error) {
+      console.error("Like/Unlike comment error:", error);
+      setPost(prevPost);
+    }
+  };
+
   // ─── Scroll to top on navigation ─────────────────────────────────────────────
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -130,7 +323,23 @@ export default function QuestionDetailPage({
         const json = await fetchCache[id];
         if (active) {
           // Route mengembalikan { status, data } sesuai PostDetailResponse
-          setPost(json.data ?? json);
+          const postData = json.data ?? json;
+
+          try {
+            const bookmarksRes = await fetch("/api/bookmark");
+            if (bookmarksRes.ok) {
+              const bookmarksJson = await bookmarksRes.json();
+              const bookmarksList = bookmarksJson.data ?? [];
+              const matchedBookmark = bookmarksList.find((b: any) => b.post_id === postData.id);
+              if (matchedBookmark) {
+                postData.bookmark_id = matchedBookmark.id;
+              }
+            }
+          } catch (bookmarkErr) {
+            console.error("Gagal mencocokkan bookmark_id:", bookmarkErr);
+          }
+
+          setPost(postData);
         }
       } catch (err: any) {
         console.error("Fetch post detail error:", err);
@@ -259,6 +468,7 @@ export default function QuestionDetailPage({
 
           {/* Like */}
           <button
+            onClick={handleLike}
             className={`mt-2 transition-colors cursor-pointer ${
               post.user_has_liked
                 ? "text-red-500"
@@ -277,6 +487,7 @@ export default function QuestionDetailPage({
 
           {/* Bookmark */}
           <button
+            onClick={handleBookmark}
             className={`mt-1 transition-colors cursor-pointer ${
               post.user_has_bookmarked
                 ? "text-yellow-500"
@@ -358,15 +569,33 @@ export default function QuestionDetailPage({
                 {post.comments.map((comm: Comment) => (
                   <div
                     key={comm.id}
-                    className="text-xs text-zinc-650 dark:text-zinc-350 pt-2 first:pt-0 leading-relaxed font-sans"
+                    className="group flex items-start justify-between gap-4 text-xs text-zinc-650 dark:text-zinc-350 pt-2 first:pt-0 leading-relaxed font-sans"
                   >
-                    <span className="font-semibold text-zinc-800 dark:text-zinc-200 mr-1">
-                      {comm.user.username}:
-                    </span>
-                    {comm.body}
-                    <span className="text-[10px] text-zinc-400 dark:text-zinc-500 ml-2 font-mono">
-                      — {formatDate(comm.created_at)}
-                    </span>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-semibold text-zinc-800 dark:text-zinc-200 mr-1">
+                        {comm.user.username}:
+                      </span>
+                      {comm.body}
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 ml-2 font-mono whitespace-nowrap">
+                        — {formatDate(comm.created_at)}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={(e) => handleCommentLike(e, comm.id)}
+                      className={`flex items-center gap-1 cursor-pointer transition-colors shrink-0 ${
+                        comm.user_has_liked
+                          ? "text-red-500"
+                          : "text-zinc-400 hover:text-red-500 dark:text-zinc-550"
+                      }`}
+                      title="Like komentar ini"
+                    >
+                      <Heart
+                        className="h-3 w-3"
+                        fill={comm.user_has_liked ? "currentColor" : "none"}
+                      />
+                      <span className="text-[10px] font-mono">{comm.likes_count}</span>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -463,11 +692,28 @@ export default function QuestionDetailPage({
 
                       <div className="flex justify-between items-center mt-6">
                         <div>
-                          {reply.is_accepted === 1 && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-sans">
-                              ✓ Solusi Disepakati
-                            </span>
-                          )}
+                          <div className="flex items-center gap-3">
+                            {reply.is_accepted === 1 && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-sans">
+                                ✓ Solusi Disepakati
+                              </span>
+                            )}
+                            <button
+                              onClick={(e) => handleCommentLike(e, reply.id)}
+                              className={`inline-flex items-center gap-1 text-[11px] font-semibold cursor-pointer transition-colors ${
+                                reply.user_has_liked
+                                  ? "text-red-500"
+                                  : "text-zinc-450 hover:text-red-550 dark:text-zinc-500"
+                              }`}
+                              title="Like balasan ini"
+                            >
+                              <Heart
+                                className="h-3.5 w-3.5"
+                                fill={reply.user_has_liked ? "currentColor" : "none"}
+                              />
+                              <span>{reply.likes_count}</span>
+                            </button>
+                          </div>
                         </div>
                         <div className="w-56 bg-zinc-100/40 dark:bg-zinc-900/40 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800">
                           <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono block mb-1">
