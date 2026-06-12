@@ -432,4 +432,89 @@ describe("Halaman Profil & Edit Profil", () => {
       cy.get("p").should("contain", "Perubahan bio tester");
     });
   });
+
+  describe("Alur Ubah Password", () => {
+    beforeEach(() => {
+      cy.visit("/profile");
+      cy.wait(["@getMe", "@getProfileDetail"]);
+      cy.get("#btn-change-password-toggle").click();
+      cy.url().should("include", "/profile/change-password");
+    });
+
+    it("Menampilkan form kosong saat pertama kali dibuka", () => {
+      cy.get("input#current_password").should("have.value", "");
+      cy.get("input#new_password").should("have.value", "");
+      cy.get("input#new_password_confirmation").should("have.value", "");
+    });
+
+    it("Dapat membatalkan proses ubah password dan kembali ke /profile", () => {
+      cy.get("button").contains("Batalkan").click();
+      cy.url().should("eq", Cypress.config("baseUrl") + "/profile");
+    });
+
+    it("Menampilkan validasi client jika password baru kurang dari 6 karakter", () => {
+      cy.get("input#current_password").type("current123");
+      cy.get("input#new_password").type("123");
+      cy.get("input#new_password_confirmation").type("123");
+      cy.get("button[type='submit']").click();
+
+      cy.contains("Password baru minimal harus 6 karakter.").should("be.visible");
+    });
+
+    it("Menampilkan validasi client jika konfirmasi password baru tidak cocok", () => {
+      cy.get("input#current_password").type("current123");
+      cy.get("input#new_password").type("newpassword123");
+      cy.get("input#new_password_confirmation").type("different123");
+      cy.get("button[type='submit']").click();
+
+      cy.contains("Konfirmasi password baru tidak cocok.").should("be.visible");
+    });
+
+    it("Menangani error backend ketika pengubahan password gagal", () => {
+      const mockErrorResponse = {
+        success: false,
+        message: "Password saat ini salah.",
+      };
+
+      cy.intercept("POST", "/api/change-password", {
+        statusCode: 400,
+        body: mockErrorResponse,
+      }).as("changePasswordFail");
+
+      cy.get("input#current_password").type("wrongpassword");
+      cy.get("input#new_password").type("newpassword123");
+      cy.get("input#new_password_confirmation").type("newpassword123");
+      cy.get("button[type='submit']").click();
+      cy.wait("@changePasswordFail");
+
+      cy.contains("Password saat ini salah.").should("be.visible");
+    });
+
+    it("Mengubah password dengan sukses dan dialihkan kembali ke /profile", () => {
+      const mockSuccessResponse = {
+        success: true,
+        message: "Password berhasil diperbarui",
+      };
+
+      cy.intercept("POST", "/api/change-password", {
+        statusCode: 200,
+        body: mockSuccessResponse,
+      }).as("changePasswordSuccess");
+
+      cy.get("input#current_password").type("oldpassword123");
+      cy.get("input#new_password").type("newpassword123");
+      cy.get("input#new_password_confirmation").type("newpassword123");
+      cy.get("button[type='submit']").click();
+      cy.wait("@changePasswordSuccess");
+
+      // Cek alert sukses pada form
+      cy.contains("Password berhasil diperbarui").should("be.visible");
+
+      // Cek toast notifikasi dari AppContext
+      cy.get("#toast-notification").should("be.visible").and("contain", "Password berhasil diperbarui");
+
+      // Redireksi otomatis setelah 1.5 detik ke /profile
+      cy.url().should("include", "/profile");
+    });
+  });
 });
