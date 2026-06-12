@@ -39,6 +39,7 @@ const getMeApi = async () => {
 const registerSchema = Yup.object({
   username: Yup.string()
     .min(3, 'Username minimal 3 karakter')
+    .max(12, 'Username maksimal 12 karakter')
     .matches(/^[a-z0-9_-]+$/, 'Username hanya boleh huruf kecil, angka, _ atau -')
     .required('Username wajib diisi'),
   email: Yup.string()
@@ -190,6 +191,7 @@ export default function RegisterPage() {
                   value={formik.values.username}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
+                  maxLength={12}
                   className={`${inputBase} pl-10 pr-4 ${errorBorder('username')}`}
                   disabled={isLoading}
                 />

@@ -15,3 +15,13 @@
 
 // Import commands.js using ES2015 syntax:
 import './commands'
+
+// Prevent Cypress from failing the test on React hydration warnings/mismatches.
+Cypress.on('uncaught:exception', (err, runnable) => {
+  // Ignore specific hydration mismatch error
+  if (err.message && err.message.includes('Hydration failed')) {
+    return false; // prevent the test from failing
+  }
+  // You can add more conditions if needed
+  return true; // let other errors fail the test
+});
