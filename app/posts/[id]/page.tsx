@@ -20,6 +20,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Post, Comment } from "@/app/api/posts/[id]/PostDetailType";
 
+// Extend Post type to include optional bookmark_id used for optimistic UI
+interface PostWithBookmark extends Post {
+  bookmark_id?: string | null;
+}
+
 const AVATAR_BASE = "https://pegaduanmasyarakat.alwaysdata.net/storage/";
 const FALLBACK_AVATAR =
   "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80";
@@ -89,7 +94,7 @@ export default function QuestionDetailPage({
   const { id } = use(params);
   const router = useRouter();
 
-  const [post, setPost] = useState<Post | null>(null);
+  const [post, setPost] = useState<PostWithBookmark | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -163,7 +168,8 @@ export default function QuestionDetailPage({
               ? prev.bookmarks_count - 1
               : prev.bookmarks_count + 1,
             user_has_bookmarked: !isBookmarked,
-            bookmark_id: isBookmarked ? null : prev.bookmark_id,
+            // Ensure bookmark_id is string or null
+            bookmark_id: isBookmarked ? null : (prev.bookmark_id ?? null),
           }
         : prev
     );
@@ -323,7 +329,7 @@ export default function QuestionDetailPage({
         const json = await fetchCache[id];
         if (active) {
           // Route mengembalikan { status, data } sesuai PostDetailResponse
-          const postData = json.data ?? json;
+          const postData: PostWithBookmark = (json.data ?? json) as any;
 
           try {
             const bookmarksRes = await fetch("/api/bookmark");
