@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import axios from "axios";
-import { PostDetailResponse } from "./PostDetailType";
+import { PostDetailResponse, EditPostRequest, EditPostResponse } from "./PostDetailType";
 
 // ===============================
 // FUNCTION UNTUK AMBIL ID DARI URL
@@ -81,6 +82,60 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response.data);
   } catch (error: any) {
     console.log("UPDATE POST ERROR:", error.response?.data);
+
+    return NextResponse.json(
+      {
+        message:
+          error.response?.data?.message ||
+          "Terjadi kesalahan saat mengupdate post",
+      },
+      { status: error.response?.status || 500 }
+    );
+  }
+}
+
+// ===============================
+// EDIT POST (PUT)
+// ===============================
+export async function PUT(request: NextRequest) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
+    const id = getIdFromUrl(request);
+
+    if (!token) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!id) {
+      return NextResponse.json(
+        { message: "ID tidak ditemukan" },
+        { status: 400 }
+      );
+    }
+
+    const body: EditPostRequest = await request.json();
+
+    const response = await axios.put<EditPostResponse>(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/posts/${id}`,
+      body,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        timeout: 5000,
+      }
+    );
+
+    return NextResponse.json({
+      message: response.data.message || "post berhasil diperbarui",
+      data: response.data.data,
+      edit_history: response.data.edit_history,
+    });
+  } catch (error: any) {
+    console.error("EDIT POST ERROR:", error.response?.data || error.message);
 
     return NextResponse.json(
       {
