@@ -494,9 +494,9 @@ export default function CategoriesPage() {
                     // Do not allow choosing itself as parent
                     .filter((c) => !editingCategory || c.id !== editingCategory.id)
                     .map((c) => (
-                      <option key={c.id} value={c.id}>
+                      <option key={c.name} value={c.name || ""}>
                         {c.name}
-                      </option>
+                      </option> 
                     ))}
                 </select>
               </div>
