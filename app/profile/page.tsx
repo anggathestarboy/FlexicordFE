@@ -199,7 +199,24 @@ interface BookmarkPostDetail {
   user: { id: string; username: string; avatar_url: string | null };
 }
 
-type TabKey = "posts" | "activity" | "likes" | "bookmarks" | "credentials";
+interface PointLog {
+  id: string;
+  user_id: string;
+  points: number;
+  action_type: string;
+  reference_id: string;
+  description: string;
+  created_at: string;
+}
+
+interface PointsLogsResponse {
+  status: string;
+  username: string;
+  reputation_points: number;
+  data: PointLog[];
+}
+
+type TabKey = "posts" | "activity" | "likes" | "bookmarks" | "credentials" | "points";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -644,9 +661,83 @@ function BookmarkSection({
   );
 }
 
+// ─── Points Section ───────────────────────────────────────────────────────
+
+function PointsSection({ username }: { username: string }) {
+  const [data, setData] = useState<PointsLogsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/points-logs/user/${username}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Gagal memuat histori point.");
+        return res.json();
+      })
+      .then((d) => setData(d))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [username]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12 gap-2">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-blue" />
+        <span className="text-xs text-zinc-400">Memuat histori point…</span>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <p className="text-xs text-red-500 italic py-6 text-center">
+        {error ?? "Gagal memuat histori point."}
+      </p>
+    );
+  }
+
+  if (data.data.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-10 gap-2">
+        <Award className="h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+        <p className="text-xs text-zinc-400 italic">Belum ada histori point.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {data.data.map((log) => (
+        <div
+          key={log.id}
+          className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 flex justify-between items-center"
+        >
+          <div>
+            <p className="text-xs font-semibold text-zinc-900 dark:text-white">
+              {log.description}
+            </p>
+            <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
+              {formatDateFull(log.created_at)}
+            </p>
+          </div>
+          <div
+            className={`text-sm font-bold font-mono ${
+              log.points > 0 ? "text-emerald-500" : "text-red-500"
+            }`}
+          >
+            {log.points > 0 ? "+" : ""}
+            {log.points}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Credentials Section ──────────────────────────────────────────────────────
 
-function CredentialsSection({ user }: { user: UserDetail }) {
+function CredentialsSection({ user, onNavigatePoints }: { user: UserDetail; onNavigatePoints?: () => void }) {
   const role = primaryRole(user.roles);
 
   return (
@@ -722,7 +813,12 @@ function CredentialsSection({ user }: { user: UserDetail }) {
 
         <div className="flex items-center justify-between text-xs py-1.5">
           <span className="text-zinc-500 dark:text-zinc-400">Reputasi</span>
-          <span className="font-mono font-black text-brand-blue text-sm">{user.reputation_points.toLocaleString()} pts</span>
+          <span 
+            className="font-mono font-black text-brand-blue text-sm cursor-pointer hover:underline"
+            onClick={() => onNavigatePoints && onNavigatePoints()}
+          >
+            {user.reputation_points.toLocaleString()} pts
+          </span>
         </div>
       </div>
 
@@ -878,6 +974,11 @@ export default function MyProfilePage() {
       label: "Kredensial",
       icon: <ShieldCheck className="h-3.5 w-3.5" />,
     },
+    {
+      key: "points",
+      label: "Histori Point",
+      icon: <Award className="h-3.5 w-3.5" />,
+    },
   ];
 
   return (
@@ -1026,13 +1127,15 @@ export default function MyProfilePage() {
             label: "Reputasi",
             value: user.reputation_points,
             sub: `Level ${user.level}`,
+            onClick: () => setActiveTab("points"),
           },
           { label: "Total Post", value: user.posts_count, sub: "pertanyaan" },
           { label: "Lencana", value: user.badges_count, sub: "badge" },
-        ].map(({ label, value, sub }) => (
+        ].map(({ label, value, sub, onClick }) => (
           <div
             key={label}
-            className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 text-center"
+            onClick={onClick}
+            className={`p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 text-center ${onClick ? 'cursor-pointer hover:border-brand-blue transition-all' : ''}`}
           >
             <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
               {label}
@@ -1203,7 +1306,12 @@ export default function MyProfilePage() {
 
           {/* ── Credentials tab ─────────────────────────────────────────── */}
           {activeTab === "credentials" && (
-            <CredentialsSection user={user} />
+            <CredentialsSection user={user} onNavigatePoints={() => setActiveTab("points")} />
+          )}
+
+          {/* ── Points tab ─────────────────────────────────────────────── */}
+          {activeTab === "points" && (
+            <PointsSection username={user.username} />
           )}
         </div>
       </div>
