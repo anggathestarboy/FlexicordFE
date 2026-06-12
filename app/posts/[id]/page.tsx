@@ -15,6 +15,8 @@ import {
   Eye,
   Loader2,
   AlertCircle,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -109,6 +111,113 @@ export default function QuestionDetailPage({
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState("");
   const [submittingReply, setSubmittingReply] = useState(false);
+
+  // States for editing comments
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editBody, setEditBody] = useState("");
+  const [submittingEdit, setSubmittingEdit] = useState(false);
+
+  // States for deleting comments
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+
+  const isAdminOrModerator = currentUser?.primary_role?.name === 'admin' || currentUser?.primary_role?.name === 'moderator';
+  const isPostOwnerOrAdmin = currentUser && post && (currentUser.id === post.user_id || currentUser.primary_role?.name === 'admin');
+
+  // States for editing post
+  const [isEditingPost, setIsEditingPost] = useState(false);
+  const [editPostTitle, setEditPostTitle] = useState("");
+  const [editPostBody, setEditPostBody] = useState("");
+  const [editPostCategorySlug, setEditPostCategorySlug] = useState("");
+  const [editPostTagsString, setEditPostTagsString] = useState("");
+  const [editPostReason, setEditPostReason] = useState("");
+  const [categories, setCategories] = useState<any[]>([]);
+  const [submittingEditPost, setSubmittingEditPost] = useState(false);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/categories");
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data ?? json;
+        if (Array.isArray(data)) {
+          setCategories(data);
+        }
+      }
+    } catch (err) {
+      console.error("Gagal memuat kategori:", err);
+    }
+  };
+
+  const handleEditPost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!post || !editPostTitle.trim() || !editPostBody.trim() || !editPostCategorySlug || submittingEditPost) return;
+
+    setSubmittingEditPost(true);
+    try {
+      const tagsArray = editPostTagsString
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      const res = await fetch(`/api/posts/${post.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: editPostTitle.trim(),
+          body: editPostBody.trim(),
+          category_slug: editPostCategorySlug,
+          tags: tagsArray,
+          reason: editPostReason.trim() || undefined,
+        }),
+      });
+
+      const resData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(resData.message || "Gagal memperbarui postingan");
+      }
+
+      showNotification("Postingan berhasil diperbarui!");
+      setIsEditingPost(false);
+      await fetchPostDetails(false);
+    } catch (err: any) {
+      console.error("Edit post error:", err);
+      showNotification(err.message || "Terjadi kesalahan saat memperbarui postingan.", "info");
+    } finally {
+      setSubmittingEditPost(false);
+    }
+  };
+
+  const [closingPost, setClosingPost] = useState(false);
+
+  const handleClosePost = async () => {
+    if (!post || closingPost) return;
+    if (!confirm("Apakah Anda yakin ingin menutup postingan ini? Postingan yang ditutup tidak dapat menerima jawaban/komentar baru.")) return;
+
+    setClosingPost(true);
+    try {
+      const res = await fetch(`/api/posts/${post.id}/close`, {
+        method: "POST",
+      });
+
+      const resData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(resData.message || "Gagal menutup postingan");
+      }
+
+      showNotification("Postingan berhasil ditutup!");
+      await fetchPostDetails(false);
+    } catch (err: any) {
+      console.error("Close post error:", err);
+      showNotification(err.message || "Terjadi kesalahan saat menutup postingan.", "info");
+    } finally {
+      setClosingPost(false);
+    }
+  };
+
 
   // ─── Vote handler (Post & Comment) ────────────────────────────────────────────
   const handleVote = async (targetId: string, voteType: "upvote" | "downvote", isComment: boolean = false) => {
@@ -616,6 +725,67 @@ export default function QuestionDetailPage({
     }
   };
 
+  // ─── Edit comment handler ────────────────────────────────────────────────────────
+  const handleEditComment = async (e: React.FormEvent, commentId: string) => {
+    e.preventDefault();
+    if (!post || !editBody.trim() || submittingEdit) return;
+
+    setSubmittingEdit(true);
+    try {
+      const res = await fetch(`/api/comment/${commentId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          body: editBody.trim(),
+        }),
+      });
+
+      const resData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(resData.message || "Gagal mengedit komentar");
+      }
+
+      setEditingCommentId(null);
+      setEditBody("");
+      showNotification("Komentar berhasil diperbarui!");
+      await fetchPostDetails(false);
+    } catch (err: any) {
+      console.error("Edit comment error:", err);
+      showNotification(err.message || "Terjadi kesalahan saat mengedit komentar.", "info");
+    } finally {
+      setSubmittingEdit(false);
+    }
+  };
+
+  // ─── Delete comment handler ──────────────────────────────────────────────────────
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus komentar ini?")) return;
+
+    setDeletingCommentId(commentId);
+    try {
+      const res = await fetch(`/api/comment/${commentId}`, {
+        method: "DELETE",
+      });
+
+      const resData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(resData.message || "Gagal menghapus komentar");
+      }
+
+      showNotification("Komentar berhasil dihapus!");
+      await fetchPostDetails(false);
+    } catch (err: any) {
+      console.error("Delete comment error:", err);
+      showNotification(err.message || "Terjadi kesalahan saat menghapus komentar.", "info");
+    } finally {
+      setDeletingCommentId(null);
+    }
+  };
+
   // ─── Loading state ────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -659,9 +829,49 @@ export default function QuestionDetailPage({
 
       {/* TITLE + META */}
       <div className="pb-5 border-b border-zinc-200 dark:border-zinc-800">
-        <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-white leading-tight">
-          {post.title}
-        </h1>
+        <div className="flex justify-between items-start gap-4">
+          <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-white leading-tight">
+            {post.title}
+          </h1>
+          <div className="flex items-center gap-2 shrink-0">
+            {isPostOwnerOrAdmin && !isEditingPost && (
+              <button
+                onClick={() => {
+                  setIsEditingPost(true);
+                  setEditPostTitle(post.title);
+                  setEditPostBody(post.body);
+                  setEditPostCategorySlug(post.category?.slug || "");
+                  setEditPostTagsString(post.tags ? post.tags.map((t: any) => t.name ?? t).join(", ") : "");
+                  setEditPostReason("");
+                  if (categories.length === 0) {
+                    fetchCategories();
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-855 border border-zinc-200 dark:border-zinc-800 hover:text-brand-blue text-xs font-semibold rounded-lg text-zinc-600 dark:text-zinc-350 transition-colors cursor-pointer shrink-0"
+                title="Edit Postingan"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+                <span>Edit</span>
+              </button>
+            )}
+
+            {isPostOwnerOrAdmin && post.status !== "closed" && !isEditingPost && (
+              <button
+                onClick={handleClosePost}
+                disabled={closingPost}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/30 border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                title="Tutup Postingan"
+              >
+                {closingPost ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <AlertCircle className="h-3.5 w-3.5" />
+                )}
+                <span>Tutup</span>
+              </button>
+            )}
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3.5 text-xs text-zinc-500 dark:text-zinc-400 font-mono">
           <span>
             Ditanyakan:{" "}
@@ -685,6 +895,12 @@ export default function QuestionDetailPage({
             <span className="flex items-center gap-1 text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full font-semibold">
               <CheckCircle2 className="h-3 w-3" />
               Terjawab
+            </span>
+          )}
+          {post.status === "closed" && (
+            <span className="flex items-center gap-1 text-red-600 bg-red-500/10 px-2 py-0.5 rounded-full font-semibold">
+              <AlertCircle className="h-3 w-3" />
+              Ditutup
             </span>
           )}
         </div>
@@ -759,9 +975,108 @@ export default function QuestionDetailPage({
 
         {/* CONTENT */}
         <div className="flex-1 min-w-0 pr-1 sm:pr-2">
-          <article className="prose prose-zinc dark:prose-invert max-w-none text-zinc-800 dark:text-zinc-200">
-            {formatTextBody(post.body)}
-          </article>
+          {isEditingPost ? (
+            <form onSubmit={handleEditPost} className="space-y-4 bg-zinc-50/50 dark:bg-zinc-900/20 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800">
+              <h3 className="text-base font-bold text-zinc-850 dark:text-zinc-150">Edit Postingan</h3>
+              
+              {/* Title */}
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Judul Postingan</label>
+                <input
+                  type="text"
+                  value={editPostTitle}
+                  onChange={(e) => setEditPostTitle(e.target.value)}
+                  disabled={submittingEditPost}
+                  className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Category */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Kategori</label>
+                  <select
+                    value={editPostCategorySlug}
+                    onChange={(e) => setEditPostCategorySlug(e.target.value)}
+                    disabled={submittingEditPost}
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all"
+                    required
+                  >
+                    <option value="">Pilih Kategori</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.slug}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Tags */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tags (pisahkan dengan koma)</label>
+                  <input
+                    type="text"
+                    placeholder="react, nextjs, typescript"
+                    value={editPostTagsString}
+                    onChange={(e) => setEditPostTagsString(e.target.value)}
+                    disabled={submittingEditPost}
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Isi Postingan</label>
+                <textarea
+                  rows={8}
+                  value={editPostBody}
+                  onChange={(e) => setEditPostBody(e.target.value)}
+                  disabled={submittingEditPost}
+                  className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all font-mono"
+                  required
+                />
+              </div>
+
+              {/* Reason */}
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Alasan Perubahan (Opsional)</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Memperbaiki typo pada paragraf kedua"
+                  value={editPostReason}
+                  onChange={(e) => setEditPostReason(e.target.value)}
+                  disabled={submittingEditPost}
+                  className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={submittingEditPost}
+                  className="bg-brand-blue hover:bg-brand-blue-hover text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm hover:shadow flex items-center gap-2 cursor-pointer transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submittingEditPost && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  <span>Simpan Perubahan</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingPost(false)}
+                  disabled={submittingEditPost}
+                  className="border border-zinc-200 dark:border-zinc-800 text-zinc-650 dark:text-zinc-350 bg-white dark:bg-zinc-950 text-xs font-semibold px-4 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 cursor-pointer"
+                >
+                  Batal
+                </button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <article className="prose prose-zinc dark:prose-invert max-w-none text-zinc-800 dark:text-zinc-200">
+                {formatTextBody(post.body)}
+              </article>
 
           {/* TAGS */}
           {post.tags.length > 0 && (
@@ -808,8 +1123,10 @@ export default function QuestionDetailPage({
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
+    </div>
+  </div>
 
       {/* REPLIES (top-level comments treated as answers/replies) */}
       {post.comments.some((c: Comment) => c.replies && c.replies.length > 0) && (
@@ -879,9 +1196,32 @@ export default function QuestionDetailPage({
                     </div>
 
                     <div className="flex-1 min-w-0 pr-1">
-                      <article className="prose prose-zinc dark:prose-invert max-w-none text-zinc-800 dark:text-zinc-200">
-                        {formatTextBody(reply.body)}
-                      </article>
+                      {editingCommentId === reply.id ? (
+                        <form onSubmit={(e) => handleEditComment(e, reply.id)} className="mt-2 space-y-2.5">
+                          <textarea
+                            rows={4}
+                            value={editBody}
+                            onChange={(e) => setEditBody(e.target.value)}
+                            disabled={submittingEdit}
+                            className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all disabled:opacity-60"
+                            required
+                            autoFocus
+                          />
+                          <div className="flex gap-2">
+                            <button type="submit" disabled={submittingEdit} className="bg-brand-blue hover:bg-brand-blue-hover text-white text-[11px] font-semibold px-3 py-1.5 rounded shadow-sm flex items-center gap-1.5 cursor-pointer">
+                              {submittingEdit && <Loader2 className="h-3 w-3 animate-spin" />}
+                              <span>Simpan</span>
+                            </button>
+                            <button type="button" onClick={() => setEditingCommentId(null)} className="border border-zinc-200 dark:border-zinc-800 text-zinc-650 bg-white dark:bg-zinc-950 text-[11px] font-semibold px-3 py-1.5 rounded hover:bg-zinc-50 cursor-pointer">
+                              Batal
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <article className="prose prose-zinc dark:prose-invert max-w-none text-zinc-800 dark:text-zinc-200">
+                          {formatTextBody(reply.body)}
+                        </article>
+                      )}
 
                       <div className="flex justify-between items-center mt-6">
                         <div>
@@ -905,6 +1245,34 @@ export default function QuestionDetailPage({
                               />
                               <span>{reply.likes_count}</span>
                             </button>
+                            {currentUser?.id === reply.user_id && (
+                              <button
+                                onClick={() => {
+                                  setEditingCommentId(reply.id);
+                                  setEditBody(reply.body);
+                                }}
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-450 hover:text-brand-blue dark:text-zinc-500 transition-colors cursor-pointer"
+                                title="Edit balasan ini"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                                <span>Edit</span>
+                              </button>
+                            )}
+                            {isAdminOrModerator && (
+                              <button
+                                onClick={() => handleDeleteComment(reply.id)}
+                                disabled={deletingCommentId === reply.id}
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-450 hover:text-red-500 dark:text-zinc-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Hapus balasan ini"
+                              >
+                                {deletingCommentId === reply.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                                <span>Hapus</span>
+                              </button>
+                            )}
                           </div>
                         </div>
                         <div className="w-56 bg-zinc-100/40 dark:bg-zinc-900/40 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800">
@@ -1050,9 +1418,32 @@ export default function QuestionDetailPage({
                     </div>
 
                     {/* Comment Body */}
-                    <div className="text-zinc-800 dark:text-zinc-200 pl-0.5 leading-relaxed">
-                      {comm.body}
-                    </div>
+                    {editingCommentId === comm.id ? (
+                      <form onSubmit={(e) => handleEditComment(e, comm.id)} className="mt-1 space-y-2.5 pl-0.5">
+                        <textarea
+                          rows={3}
+                          value={editBody}
+                          onChange={(e) => setEditBody(e.target.value)}
+                          disabled={submittingEdit}
+                          className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-3 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all disabled:opacity-60"
+                          required
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <button type="submit" disabled={submittingEdit} className="bg-brand-blue hover:bg-brand-blue-hover text-white text-[11px] font-semibold px-3 py-1.5 rounded flex items-center gap-1.5 cursor-pointer">
+                            {submittingEdit && <Loader2 className="h-3 w-3 animate-spin" />}
+                            <span>Simpan</span>
+                          </button>
+                          <button type="button" onClick={() => setEditingCommentId(null)} className="border border-zinc-200 dark:border-zinc-850 text-zinc-650 bg-white dark:bg-zinc-950 text-[11px] font-semibold px-3 py-1.5 rounded hover:bg-zinc-50 cursor-pointer">
+                            Batal
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="text-zinc-800 dark:text-zinc-200 pl-0.5 leading-relaxed">
+                        {comm.body}
+                      </div>
+                    )}
 
                     {/* Date & Reply Action (Di Bawah Komen) */}
                     <div className="flex items-center gap-3 mt-2 pl-0.5 text-[10px] text-zinc-455 dark:text-zinc-500">
@@ -1067,12 +1458,48 @@ export default function QuestionDetailPage({
                           } else {
                             setReplyingToCommentId(comm.id);
                             setReplyBody("");
+                            setEditingCommentId(null);
                           }
                         }}
                         className="hover:text-brand-blue cursor-pointer font-sans font-bold transition-colors"
                       >
                         {replyingToCommentId === comm.id ? "Batal" : "Balas"}
                       </button>
+                      {currentUser?.id === comm.user_id && (
+                        <>
+                          <span>•</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCommentId(comm.id);
+                              setEditBody(comm.body);
+                              setReplyingToCommentId(null);
+                            }}
+                            className="hover:text-brand-blue cursor-pointer font-sans font-bold transition-colors flex items-center gap-1"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                            <span>Edit</span>
+                          </button>
+                        </>
+                      )}
+                      {isAdminOrModerator && (
+                        <>
+                          <span>•</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteComment(comm.id)}
+                            disabled={deletingCommentId === comm.id}
+                            className="hover:text-red-500 cursor-pointer font-sans font-bold transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {deletingCommentId === comm.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3 w-3" />
+                            )}
+                            <span>Hapus</span>
+                          </button>
+                        </>
+                      )}
                     </div>
 
                     {/* Inline Reply Form */}

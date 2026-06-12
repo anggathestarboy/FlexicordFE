@@ -85,3 +85,40 @@ export interface PostDetailResponse {
   status: string;
   data: Post;
 }
+
+export interface EditPostRequest {
+  title: string;
+  body: string;
+  reason?: string;
+  category_slug: string;
+  tags?: string[];
+}
+
+export interface PostEditHistory {
+  id: string;
+  post_id: string;
+  edited_by: string;
+  body_before: string;
+  body_after: string;
+  reason: string;
+  edited_at: string;
+}
+
+export interface EditPostResponse {
+  message: string;
+  data: {
+    id: string;
+    user_id: string;
+    category_id: string;
+    title: string;
+    body: string;
+    status: string;
+    view_count: number;
+    vote_score: number;
+    is_answered: number;
+    accepted_answer_id: string | null;
+    created_at: string;
+    updated_at: string;
+  };
+  edit_history: PostEditHistory;
+}
