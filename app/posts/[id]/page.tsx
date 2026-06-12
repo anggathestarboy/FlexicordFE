@@ -19,6 +19,7 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Post, Comment } from "@/app/api/posts/[id]/PostDetailType";
+import { useApp } from "@/context/AppContext";
 
 // Extend Post type to include optional bookmark_id used for optimistic UI
 interface PostWithBookmark extends Post {
@@ -93,6 +94,7 @@ export default function QuestionDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const { currentUser, showNotification } = useApp();
 
   const [post, setPost] = useState<PostWithBookmark | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,6 +103,12 @@ export default function QuestionDetailPage({
   const [questionComment, setQuestionComment] = useState("");
   const [showQuestionCommentInput, setShowQuestionCommentInput] =
     useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
+
+  // States for replies
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
+  const [replyBody, setReplyBody] = useState("");
+  const [submittingReply, setSubmittingReply] = useState(false);
 
   // ─── Vote handler (Post & Comment) ────────────────────────────────────────────
   const handleVote = async (targetId: string, voteType: "upvote" | "downvote", isComment: boolean = false) => {
@@ -469,79 +477,143 @@ export default function QuestionDetailPage({
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [id]);
 
-  // ─── Fetch post detail ───────────────────────────────────────────────────────
+  const isMounted = useRef(true);
   useEffect(() => {
-    let active = true;
-
-    const fetchPost = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        if (!fetchCache[id]) {
-          fetchCache[id] = fetch(`/api/posts/${id}`).then(async (res) => {
-            if (!res.ok) {
-              const json = await res.json();
-              throw new Error(json.message || "Post tidak ditemukan");
-            }
-            return res.json();
-          });
-
-          // Clean up cache after a delay to ensure subsequent page loads get fresh data
-          fetchCache[id].finally(() => {
-            setTimeout(() => {
-              delete fetchCache[id];
-            }, 1000);
-          });
-        }
-
-        const json = await fetchCache[id];
-        if (active) {
-          // Route mengembalikan { status, data } sesuai PostDetailResponse
-          const postData: PostWithBookmark = (json.data ?? json) as any;
-
-          try {
-            const bookmarksRes = await fetch("/api/bookmark");
-            if (bookmarksRes.ok) {
-              const bookmarksJson = await bookmarksRes.json();
-              const bookmarksList = bookmarksJson.data ?? [];
-              const matchedBookmark = bookmarksList.find((b: any) => b.post_id === postData.id);
-              if (matchedBookmark) {
-                postData.bookmark_id = matchedBookmark.id;
-              }
-            }
-          } catch (bookmarkErr) {
-            console.error("Gagal mencocokkan bookmark_id:", bookmarkErr);
-          }
-
-          setPost(postData);
-        }
-      } catch (err: any) {
-        console.error("Fetch post detail error:", err);
-        if (active) {
-          setError(err.message || "Gagal memuat data. Silakan coba lagi.");
-        }
-        delete fetchCache[id];
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchPost();
-
+    isMounted.current = true;
     return () => {
-      active = false;
+      isMounted.current = false;
     };
+  }, []);
+
+  // ─── Fetch post detail ───────────────────────────────────────────────────────
+  const fetchPostDetails = async (showLoading = false) => {
+    if (showLoading) setLoading(true);
+    setError(null);
+    try {
+      // Hapus cache agar memaksa fetch data terbaru
+      delete fetchCache[id];
+
+      const res = await fetch(`/api/posts/${id}`);
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.message || "Post tidak ditemukan");
+      }
+      const json = await res.json();
+      const postData: PostWithBookmark = (json.data ?? json) as any;
+
+      try {
+        const bookmarksRes = await fetch("/api/bookmark");
+        if (bookmarksRes.ok) {
+          const bookmarksJson = await bookmarksRes.json();
+          const bookmarksList = bookmarksJson.data ?? [];
+          const matchedBookmark = bookmarksList.find((b: any) => b.post_id === postData.id);
+          if (matchedBookmark) {
+            postData.bookmark_id = matchedBookmark.id;
+          }
+        }
+      } catch (bookmarkErr) {
+        console.error("Gagal mencocokkan bookmark_id:", bookmarkErr);
+      }
+
+      if (isMounted.current) {
+        setPost(postData);
+      }
+    } catch (err: any) {
+      console.error("Fetch post detail error:", err);
+      if (isMounted.current) {
+        setError(err.message || "Gagal memuat data. Silakan coba lagi.");
+      }
+    } finally {
+      if (showLoading && isMounted.current) {
+        setLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchPostDetails(true);
   }, [id]);
 
-  // ─── Add comment handler (placeholder, sambungkan ke API komentar jika ada) ──
-  const handleAddQuestionComment = (e: React.FormEvent) => {
+  // ─── Add comment handler ──────────────────────────────────────────────────────
+  const handleAddQuestionComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!questionComment.trim()) return;
-    // TODO: hubungkan ke route /api/comments saat tersedia
-    setQuestionComment("");
-    setShowQuestionCommentInput(false);
+    if (!post || !questionComment.trim() || submittingComment) return;
+
+    if (!currentUser) {
+      showNotification("Anda harus masuk (login) terlebih dahulu untuk memberikan komentar.", "info");
+      return;
+    }
+
+    setSubmittingComment(true);
+    try {
+      const res = await fetch("/api/comment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          post_id: post.id,
+          body: questionComment.trim(),
+        }),
+      });
+
+      const resData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(resData.message || "Gagal mengirim komentar");
+      }
+
+      setQuestionComment("");
+      showNotification("Komentar berhasil ditambahkan!");
+      await fetchPostDetails(false);
+    } catch (err: any) {
+      console.error("Submit comment error:", err);
+      showNotification(err.message || "Terjadi kesalahan saat mengirim komentar.", "info");
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  // ─── Add reply handler ────────────────────────────────────────────────────────
+  const handleSendReply = async (e: React.FormEvent, parentCommentId: string) => {
+    e.preventDefault();
+    if (!post || !replyBody.trim() || submittingReply) return;
+
+    if (!currentUser) {
+      showNotification("Anda harus masuk (login) terlebih dahulu untuk membalas komentar.", "info");
+      return;
+    }
+
+    setSubmittingReply(true);
+    try {
+      const res = await fetch("/api/comment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          post_id: post.id,
+          parent_id: parentCommentId,
+          body: replyBody.trim(),
+        }),
+      });
+
+      const resData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(resData.message || "Gagal mengirim balasan");
+      }
+
+      setReplyBody("");
+      setReplyingToCommentId(null);
+      showNotification("Balasan berhasil ditambahkan!");
+      await fetchPostDetails(false);
+    } catch (err: any) {
+      console.error("Submit reply error:", err);
+      showNotification(err.message || "Terjadi kesalahan saat mengirim balasan.", "info");
+    } finally {
+      setSubmittingReply(false);
+    }
   };
 
   // ─── Loading state ────────────────────────────────────────────────────────────
@@ -760,10 +832,15 @@ export default function QuestionDetailPage({
                     <div className="flex flex-col items-center gap-1 text-center shrink-0 pt-1">
                       <button
                         onClick={() => handleVote(reply.id, "upvote", true)}
-                        className={`p-1 rounded-full cursor-pointer transition-colors ${reply.user_vote_type === "upvote"
-                          ? "text-brand-blue bg-brand-blue/10"
-                          : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-brand-blue"
-                          }`}
+                        disabled={currentUser?.id === reply.user_id}
+                        className={`p-1 rounded-full transition-colors ${
+                          currentUser?.id === reply.user_id
+                            ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed opacity-50"
+                            : reply.user_vote_type === "upvote"
+                            ? "text-brand-blue bg-brand-blue/10 cursor-pointer"
+                            : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-brand-blue cursor-pointer"
+                        }`}
+                        title={currentUser?.id === reply.user_id ? "Anda tidak dapat memberikan upvote pada balasan Anda sendiri" : "Sangat membantu (Mendukung)"}
                       >
                         <ChevronUp className="h-6 w-6 stroke-[3.0]" />
                       </button>
@@ -772,10 +849,15 @@ export default function QuestionDetailPage({
                       </span>
                       <button
                         onClick={() => handleVote(reply.id, "downvote", true)}
-                        className={`p-1 rounded-full cursor-pointer transition-colors ${reply.user_vote_type === "downvote"
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-red-500"
-                          }`}
+                        disabled={currentUser?.id === reply.user_id}
+                        className={`p-1 rounded-full transition-colors ${
+                          currentUser?.id === reply.user_id
+                            ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed opacity-50"
+                            : reply.user_vote_type === "downvote"
+                            ? "text-red-500 bg-red-500/10 cursor-pointer"
+                            : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-red-500 cursor-pointer"
+                        }`}
+                        title={currentUser?.id === reply.user_id ? "Anda tidak dapat memberikan downvote pada balasan Anda sendiri" : "Kurang membantu (Menolak)"}
                       >
                         <ChevronDown className="h-6 w-6 stroke-[3.0]" />
                       </button>
@@ -861,20 +943,29 @@ export default function QuestionDetailPage({
           Tambahkan Komentar Anda
         </h3>
 
-        <form className="space-y-4">
+        <form onSubmit={handleAddQuestionComment} className="space-y-4">
           <textarea
             id="answer-body-textarea"
             rows={7}
-            placeholder="Tuliskan komentar anda..."
-            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-blue/50 focus:border-brand-blue transition-all duration-150"
+            placeholder={
+              currentUser
+                ? "Tuliskan komentar anda..."
+                : "Silakan masuk (login) terlebih dahulu untuk menulis komentar..."
+            }
+            value={questionComment}
+            onChange={(e) => setQuestionComment(e.target.value)}
+            disabled={submittingComment || !currentUser}
+            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-blue/50 focus:border-brand-blue transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
             required
           />
           <button
             id="btn-submit-answer"
             type="submit"
-            className="bg-brand-blue hover:bg-brand-blue-hover text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm hover:shadow active:scale-98 cursor-pointer transition-all duration-150"
+            disabled={submittingComment || !currentUser}
+            className="bg-brand-blue hover:bg-brand-blue-hover text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm hover:shadow active:scale-98 cursor-pointer transition-all duration-150 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Kirim Komentar Anda
+            {submittingComment && <Loader2 className="h-4 w-4 animate-spin" />}
+            <span>Kirim Komentar Anda</span>
           </button>
         </form>
 
@@ -896,11 +987,15 @@ export default function QuestionDetailPage({
                   <div className="flex flex-col items-center gap-0.5 text-center shrink-0 pt-0.5 min-w-[24px]">
                     <button
                       onClick={() => handleVote(comm.id, "upvote", true)}
-                      className={`p-0.5 rounded-full cursor-pointer transition-colors ${comm.user_vote_type === "upvote"
-                        ? "text-brand-blue bg-brand-blue/10"
-                        : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-brand-blue"
-                        }`}
-                      title="Sangat membantu (Mendukung)"
+                      disabled={currentUser?.id === comm.user_id}
+                      className={`p-0.5 rounded-full transition-colors ${
+                        currentUser?.id === comm.user_id
+                          ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed opacity-50"
+                          : comm.user_vote_type === "upvote"
+                          ? "text-brand-blue bg-brand-blue/10 cursor-pointer"
+                          : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-brand-blue cursor-pointer"
+                      }`}
+                      title={currentUser?.id === comm.user_id ? "Anda tidak dapat memberikan upvote pada komentar Anda sendiri" : "Sangat membantu (Mendukung)"}
                     >
                       <ChevronUp className="h-4 w-4 stroke-[3.0]" />
                     </button>
@@ -909,11 +1004,15 @@ export default function QuestionDetailPage({
                     </span>
                     <button
                       onClick={() => handleVote(comm.id, "downvote", true)}
-                      className={`p-0.5 rounded-full cursor-pointer transition-colors ${comm.user_vote_type === "downvote"
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-red-500"
-                        }`}
-                      title="Kurang membantu (Menolak)"
+                      disabled={currentUser?.id === comm.user_id}
+                      className={`p-0.5 rounded-full transition-colors ${
+                        currentUser?.id === comm.user_id
+                          ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed opacity-50"
+                          : comm.user_vote_type === "downvote"
+                          ? "text-red-500 bg-red-500/10 cursor-pointer"
+                          : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-red-500 cursor-pointer"
+                      }`}
+                      title={currentUser?.id === comm.user_id ? "Anda tidak dapat memberikan downvote pada komentar Anda sendiri" : "Kurang membantu (Menolak)"}
                     >
                       <ChevronDown className="h-4 w-4 stroke-[3.0]" />
                     </button>
@@ -955,10 +1054,69 @@ export default function QuestionDetailPage({
                       {comm.body}
                     </div>
 
-                    {/* Date (Di Bawah Komen) */}
-                    <div className="flex items-center gap-2 mt-2 pl-0.5 text-[9px] font-mono text-zinc-400 dark:text-zinc-500">
-                      <span>{formatDate(comm.created_at)}</span>
+                    {/* Date & Reply Action (Di Bawah Komen) */}
+                    <div className="flex items-center gap-3 mt-2 pl-0.5 text-[10px] text-zinc-455 dark:text-zinc-500">
+                      <span className="font-mono">{formatDate(comm.created_at)}</span>
+                      <span>•</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (replyingToCommentId === comm.id) {
+                            setReplyingToCommentId(null);
+                            setReplyBody("");
+                          } else {
+                            setReplyingToCommentId(comm.id);
+                            setReplyBody("");
+                          }
+                        }}
+                        className="hover:text-brand-blue cursor-pointer font-sans font-bold transition-colors"
+                      >
+                        {replyingToCommentId === comm.id ? "Batal" : "Balas"}
+                      </button>
                     </div>
+
+                    {/* Inline Reply Form */}
+                    {replyingToCommentId === comm.id && (
+                      <form
+                        onSubmit={(e) => handleSendReply(e, comm.id)}
+                        className="mt-3 pl-0.5 space-y-2.5"
+                      >
+                        <textarea
+                          rows={3}
+                          placeholder={
+                            currentUser
+                              ? `Balas komentar @${comm.user.username}...`
+                              : "Silakan masuk (login) terlebih dahulu untuk membalas..."
+                          }
+                          value={replyBody}
+                          onChange={(e) => setReplyBody(e.target.value)}
+                          disabled={submittingReply || !currentUser}
+                          className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-3 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 focus:border-brand-blue transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                          required
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="submit"
+                            disabled={submittingReply || !currentUser}
+                            className="bg-brand-blue hover:bg-brand-blue-hover text-white text-[11px] font-semibold px-3 py-1.5 rounded shadow-sm flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            {submittingReply && <Loader2 className="h-3 w-3 animate-spin" />}
+                            <span>Kirim Balasan</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReplyingToCommentId(null);
+                              setReplyBody("");
+                            }}
+                            className="border border-zinc-200 dark:border-zinc-850 text-zinc-650 dark:text-zinc-350 bg-white dark:bg-zinc-950 text-[11px] font-semibold px-3 py-1.5 rounded hover:bg-zinc-50 dark:hover:bg-zinc-900 cursor-pointer"
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      </form>
+                    )}
                   </div>
                 </div>
               ))}
