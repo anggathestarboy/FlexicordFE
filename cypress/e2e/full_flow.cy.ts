@@ -15,6 +15,7 @@ describe('Full user flow', () => {
     // Should redirect to homepage after registration
     cy.url().should('eq', Cypress.config('baseUrl') + '/');
     cy.contains('Logout').should('be.visible');
+    cy.get('#nav-profile-trigger div.hidden').click();
   });
 
   it('Logs out after registration', () => {
