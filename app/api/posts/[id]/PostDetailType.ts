@@ -63,7 +63,6 @@ export interface Post {
   updated_at: string;
   likes_count: number;
   bookmarks_count: number;
-  bookmark_id?: string | null;
   comments_count: number;
   post_edit_histories_count: number;
   upvotes_count: number;
@@ -75,6 +74,7 @@ export interface Post {
   user_vote_type: string | null;
   user_has_liked: boolean;
   user_has_bookmarked: boolean;
+  bookmark_id?: string | null;
   tags: any[];
   category: Category;
   user: User;
