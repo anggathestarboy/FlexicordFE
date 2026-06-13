@@ -7,6 +7,10 @@ function getSlugFromUrl(request: NextRequest): string | undefined {
   return pathname.split("/").pop();
 }
 
+
+
+
+
 // ===================================
 // UPDATE CATEGORY
 // ===================================
