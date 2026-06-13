@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
@@ -68,7 +68,9 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             </main>
 
             {showRightSidebar && (
-              <RightSidebar />
+              <Suspense fallback={<div className="w-80 hidden xl:block shrink-0 pl-6 pt-6 animate-pulse bg-zinc-100 dark:bg-zinc-900 rounded-lg h-96" />}>
+                <RightSidebar />
+              </Suspense>
             )}
           </div>
         )}
