@@ -15,6 +15,8 @@ export async function PUT(request: NextRequest) {
     const token = request.cookies.get("token")?.value;
     const slug = getSlugFromUrl(request);
 
+    
+
     if (!token) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
