@@ -1,0 +1,390 @@
+"use client";
+
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { 
+  Bell, 
+  CheckCheck, 
+  Heart, 
+  MessageSquare, 
+  Bookmark, 
+  ArrowLeft, 
+  Loader2, 
+  Inbox, 
+  Info,
+  Calendar
+} from "lucide-react";
+import { useApp } from "@/context/AppContext";
+
+interface Notification {
+  id: string;
+  user_id: string;
+  type: string;
+  data: any;
+  read_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface PaginationLink {
+  url: string | null;
+  label: string;
+  active: boolean;
+}
+
+interface NotificationsPaginatedData {
+  current_page: number;
+  data: Notification[];
+  first_page_url: string | null;
+  from: number | null;
+  last_page: number;
+  last_page_url: string | null;
+  links: PaginationLink[];
+  next_page_url: string | null;
+  path: string | null;
+  per_page: number;
+  prev_page_url: string | null;
+  to: number | null;
+  total: number;
+}
+
+interface ApiResponse {
+  success: boolean;
+  status: string;
+  data: NotificationsPaginatedData;
+}
+
+export default function NotificationsPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { currentUser, showNotification } = useApp();
+  const [page, setPage] = useState(1);
+
+  // Fetch notifications with react-query
+  const { data, isLoading, isError, refetch } = useQuery<ApiResponse>({
+    queryKey: ["notifications", page],
+    queryFn: async () => {
+      const res = await fetch(`/api/notifications?page=${page}`);
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error("Unauthorized");
+        }
+        throw new Error("Failed to fetch notifications");
+      }
+      return res.json();
+    },
+    enabled: !!currentUser,
+  });
+
+  // Mark all as read mutation
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/notifications/read-all", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (!res.ok) throw new Error("Gagal menandai semua notifikasi");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      showNotification("Semua notifikasi ditandai sebagai terbaca!", "success");
+    },
+    onError: (error: any) => {
+      console.error(error);
+      showNotification("Gagal menandai semua notifikasi.", "info");
+    },
+  });
+
+  const getNotificationLink = (notification: Notification): string | null => {
+    const data = notification.data || {};
+    const postId = data.post_id || data.id || data.post?.id || data.target_id;
+    if (postId) {
+      return `/posts/${postId}`;
+    }
+    return null;
+  };
+
+  const getNotificationMessage = (notification: Notification): string => {
+    const data = notification.data || {};
+    if (typeof data === "string") return data;
+    if (data.message) return data.message;
+
+    const sender = data.sender_username || data.username || "Seseorang";
+    const typeLower = notification.type.toLowerCase();
+
+    if (typeLower.includes("like")) {
+      return `${sender} menyukai postingan Anda.`;
+    }
+    if (typeLower.includes("comment")) {
+      return `${sender} memberikan komentar pada postingan Anda.`;
+    }
+    if (typeLower.includes("answer")) {
+      return `${sender} memberikan jawaban pada pertanyaan Anda.`;
+    }
+    if (typeLower.includes("bookmark")) {
+      return `${sender} menyimpan postingan Anda ke bookmark.`;
+    }
+
+    return data.title || "Anda menerima notifikasi baru.";
+  };
+
+  const getNotificationIcon = (type: string) => {
+    const typeLower = type.toLowerCase();
+    if (typeLower.includes("like")) {
+      return (
+        <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-500">
+          <Heart className="h-5 w-5 fill-current" />
+        </div>
+      );
+    }
+    if (typeLower.includes("comment") || typeLower.includes("answer")) {
+      return (
+        <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 text-blue-500">
+          <MessageSquare className="h-5 w-5" />
+        </div>
+      );
+    }
+    if (typeLower.includes("bookmark")) {
+      return (
+        <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-500">
+          <Bookmark className="h-5 w-5 fill-current" />
+        </div>
+      );
+    }
+    return (
+      <div className="p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
+        <Bell className="h-5 w-5" />
+      </div>
+    );
+  };
+
+  const formatDate = (dateStr: string): string => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // Render loading state
+  if (isLoading) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6 py-4">
+        <div className="flex items-center gap-4">
+          <div className="h-8 w-8 bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded-lg" />
+          <div className="space-y-2 flex-1">
+            <div className="h-6 bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded w-1/4" />
+            <div className="h-4 bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded w-1/3" />
+          </div>
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="p-5 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-xl flex gap-4 animate-pulse">
+              <div className="h-10 w-10 bg-zinc-200 dark:bg-zinc-800 rounded-xl" />
+              <div className="space-y-2 flex-1">
+                <div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-3/4" />
+                <div className="h-3 bg-zinc-200 dark:bg-zinc-800 rounded w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Handle errors or unauthorized state
+  if (isError || !currentUser) {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center space-y-6">
+        <div className="mx-auto w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center text-red-500">
+          <Info className="h-6 w-6" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
+            {!currentUser ? "Silakan Login Terlebih Dahulu" : "Gagal Memuat Notifikasi"}
+          </h3>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            {!currentUser 
+              ? "Anda harus masuk ke akun Anda terlebih dahulu untuk melihat notifikasi." 
+              : "Terjadi kesalahan saat mengambil notifikasi Anda dari server."}
+          </p>
+        </div>
+        {!currentUser ? (
+          <button
+            onClick={() => router.push("/login")}
+            className="bg-brand-blue hover:bg-brand-blue-hover text-white text-sm font-semibold py-2.5 px-6 rounded-lg shadow-sm transition-all"
+          >
+            Masuk ke Akun
+          </button>
+        ) : (
+          <button
+            onClick={() => refetch()}
+            className="bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
+          >
+            Coba Lagi
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  const paginatedData = data?.data;
+  const notificationsList = paginatedData?.data || [];
+  const totalNotifications = paginatedData?.total || 0;
+  const hasUnread = notificationsList.some((n) => !n.read_at);
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6 py-2">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-zinc-200 dark:border-zinc-800">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="p-2 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-500 dark:text-zinc-400 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+            title="Kembali"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight flex items-center gap-2">
+              Notifikasi
+              {totalNotifications > 0 && (
+                <span className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full font-normal">
+                  {totalNotifications}
+                </span>
+              )}
+            </h1>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              Lihat aktivitas terbaru mengenai postingan dan interaksi Anda.
+            </p>
+          </div>
+        </div>
+
+        {totalNotifications > 0 && hasUnread && (
+          <button
+            onClick={() => markAllReadMutation.mutate()}
+            disabled={markAllReadMutation.isPending}
+            className="flex items-center justify-center gap-2 bg-brand-blue hover:bg-brand-blue-hover disabled:bg-brand-blue/60 text-white text-xs font-semibold py-2 px-4 rounded-lg shadow-sm transition-all cursor-pointer"
+          >
+            {markAllReadMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <CheckCheck className="h-3.5 w-3.5" />
+            )}
+            Tandai Semua Terbaca
+          </button>
+        )}
+      </div>
+
+      {/* Notifications List */}
+      {notificationsList.length > 0 ? (
+        <div className="space-y-3">
+          {notificationsList.map((notification) => {
+            const hasLink = !!getNotificationLink(notification);
+            return (
+              <div
+                key={notification.id}
+                onClick={() => {
+                  const link = getNotificationLink(notification);
+                  if (link) {
+                    router.push(link);
+                  }
+                }}
+                className={`group flex items-start gap-4 p-5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl transition-all relative ${
+                  hasLink ? "cursor-pointer hover:border-brand-blue" : ""
+                } ${!notification.read_at ? "border-l-4 border-l-brand-blue bg-brand-blue/1 dark:bg-brand-blue/3" : ""}`}
+              >
+                {getNotificationIcon(notification.type)}
+
+                <div className="flex-1 space-y-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <p className="text-sm text-zinc-800 dark:text-zinc-200 font-medium leading-snug group-hover:text-brand-blue transition-colors">
+                      {getNotificationMessage(notification)}
+                    </p>
+
+                    {/* Unread indicator dot */}
+                    {!notification.read_at && (
+                      <span className="h-2 w-2 rounded-full bg-brand-blue shrink-0 mt-1.5" />
+                    )}
+                  </div>
+
+                  {notification.data?.post_title && (
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 italic font-mono truncate">
+                      Post: "{notification.data.post_title}"
+                    </p>
+                  )}
+
+                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-zinc-500 font-medium pt-1">
+                    <Calendar className="h-3 w-3 text-zinc-450 dark:text-zinc-550" />
+                    <span>{formatDate(notification.created_at)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Empty State */
+        <div className="p-12 text-center rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 max-w-xl mx-auto space-y-4">
+          <div className="mx-auto w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center">
+            <Inbox className="h-6 w-6 text-zinc-450 dark:text-zinc-500" />
+          </div>
+          <div className="space-y-1.5">
+            <h3 className="text-base font-bold text-zinc-900 dark:text-white">
+              Tidak ada notifikasi baru
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto leading-relaxed">
+              Anda belum menerima pemberitahuan apa pun saat ini. Kami akan memberi tahu Anda di sini saat ada aktivitas!
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!isLoading && paginatedData && paginatedData.last_page > 1 && (
+        <div className="flex items-center justify-center gap-1.5 pt-4">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3.5 py-2 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+          >
+            Sebelumnya
+          </button>
+
+          {Array.from({ length: paginatedData.last_page }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPage(p)}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                page === p
+                  ? "bg-brand-blue text-white border-brand-blue"
+                  : "border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 text-zinc-650 dark:text-zinc-350"
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+
+          <button
+            onClick={() => setPage((p) => Math.min(paginatedData.last_page, p + 1))}
+            disabled={page === paginatedData.last_page}
+            className="px-3.5 py-2 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+          >
+            Berikutnya
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

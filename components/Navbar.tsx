@@ -6,6 +6,8 @@ import ThemeToggle from './ThemeToggle';
 import FlexicordLogo from './FlexicordLogo';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+
 
 interface NavbarProps {
   currentUser: User | null;
@@ -28,6 +30,21 @@ export default function Navbar({
 }: NavbarProps) {
   const router = useRouter();
   const pathname = usePathname();
+
+  const { data: notificationsData } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: async () => {
+      const response = await fetch('/api/notifications');
+      if (!response.ok) throw new Error('Failed to fetch notifications');
+      return response.json();
+    },
+    enabled: !!currentUser,
+    refetchInterval: 30000,
+  });
+
+  const unreadCount = notificationsData?.success && Array.isArray(notificationsData.data?.data)
+    ? notificationsData.data.data.filter((n: any) => !n.read_at).length
+    : 0;
 
   const handleSearchChange = (val: string) => {
     setSearchQuery(val);
@@ -92,9 +109,11 @@ export default function Navbar({
             >
               <Bell className="h-4 w-4" />
               {/* Badge unread — ganti angka atau sembunyikan kalau tidak ada notif */}
-              <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none">
-                3
-              </span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none">
+                  {unreadCount}
+                </span>
+              )}
             </Link>
           )}
 
