@@ -1393,197 +1393,6 @@ export default function QuestionDetailPage({
     </div>
   </div>
 
-      {/* REPLIES (top-level comments treated as answers/replies) */}
-      {post.comments.some((c: Comment) => c.replies && c.replies.length > 0) && (
-        <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-850 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-white">
-              Balasan
-            </h2>
-          </div>
-          <div className="space-y-6">
-            {post.comments
-              .filter((c: Comment) => c.replies && c.replies.length > 0)
-              .flatMap((c: Comment) => c.replies)
-              .map((reply: Comment) => (
-                <div
-                  key={reply.id}
-                  className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950"
-                >
-                  <div className="flex gap-4 sm:gap-6">
-                    <div className="flex flex-col items-center gap-1 text-center shrink-0 pt-1">
-                      <button
-                        onClick={() => handleVote(reply.id, "upvote", true)}
-                        disabled={currentUser?.id === reply.user_id}
-                        className={`p-1 rounded-full transition-colors ${
-                          currentUser?.id === reply.user_id
-                            ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed opacity-50"
-                            : reply.user_vote_type === "upvote"
-                            ? "text-brand-blue bg-brand-blue/10 cursor-pointer"
-                            : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-brand-blue cursor-pointer"
-                        }`}
-                        title={currentUser?.id === reply.user_id ? "Anda tidak dapat memberikan upvote pada balasan Anda sendiri" : "Sangat membantu (Mendukung)"}
-                      >
-                        <ChevronUp className="h-6 w-6 stroke-[3.0]" />
-                      </button>
-                      <span className="text-sm font-bold font-mono text-zinc-700 dark:text-zinc-300">
-                        {reply.votes_count}
-                      </span>
-                      <button
-                        onClick={() => handleVote(reply.id, "downvote", true)}
-                        disabled={currentUser?.id === reply.user_id}
-                        className={`p-1 rounded-full transition-colors ${
-                          currentUser?.id === reply.user_id
-                            ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed opacity-50"
-                            : reply.user_vote_type === "downvote"
-                            ? "text-red-500 bg-red-500/10 cursor-pointer"
-                            : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-red-500 cursor-pointer"
-                        }`}
-                        title={currentUser?.id === reply.user_id ? "Anda tidak dapat memberikan downvote pada balasan Anda sendiri" : "Kurang membantu (Menolak)"}
-                      >
-                        <ChevronDown className="h-6 w-6 stroke-[3.0]" />
-                      </button>
-                      {reply.is_accepted === 1 ? (
-                        <div
-                          className="mt-2 text-emerald-500"
-                          title="Solusi yang disepakati"
-                        >
-                          <CheckCircle2 className="h-6 w-6 fill-emerald-500/10" />
-                        </div>
-                      ) : (
-                        isPostOwner && !hasAcceptedAnswer && reply.user_id !== post.user_id && (
-                          <button
-                            onClick={() => handleAcceptAnswer(reply.id)}
-                            disabled={acceptingAnswerId === reply.id}
-                            className="mt-2 text-zinc-300 hover:text-emerald-500 transition-colors cursor-pointer"
-                            title="Tandai sebagai solusi"
-                          >
-                            {acceptingAnswerId === reply.id ? (
-                              <Loader2 className="h-5 w-5 animate-spin" />
-                            ) : (
-                              <Check className="h-5 w-5 hover:scale-110 active:scale-95 transition-transform" />
-                            )}
-                          </button>
-                        )
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0 pr-1">
-                      {editingCommentId === reply.id ? (
-                        <form onSubmit={(e) => handleEditComment(e, reply.id)} className="mt-2 space-y-2.5">
-                          <textarea
-                            rows={4}
-                            value={editBody}
-                            onChange={(e) => setEditBody(e.target.value)}
-                            disabled={submittingEdit}
-                            className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all disabled:opacity-60"
-                            required
-                            autoFocus
-                          />
-                          <div className="flex gap-2">
-                            <button type="submit" disabled={submittingEdit} className="bg-brand-blue hover:bg-brand-blue-hover text-white text-[11px] font-semibold px-3 py-1.5 rounded shadow-sm flex items-center gap-1.5 cursor-pointer">
-                              {submittingEdit && <Loader2 className="h-3 w-3 animate-spin" />}
-                              <span>Simpan</span>
-                            </button>
-                            <button type="button" onClick={() => setEditingCommentId(null)} className="border border-zinc-200 dark:border-zinc-800 text-zinc-650 bg-white dark:bg-zinc-950 text-[11px] font-semibold px-3 py-1.5 rounded hover:bg-zinc-50 cursor-pointer">
-                              Batal
-                            </button>
-                          </div>
-                        </form>
-                      ) : (
-                        <div className="ql-snow">
-                          {renderQuillBody(reply.body)}
-                        </div>
-                      )}
-
-                      <div className="flex justify-between items-center mt-6">
-                        <div>
-                          <div className="flex items-center gap-3">
-                            {reply.is_accepted === 1 && (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-sans">
-                                ✓ Solusi Disepakati
-                              </span>
-                            )}
-                            <button
-                              onClick={(e) => handleCommentLike(e, reply.id)}
-                              className={`inline-flex items-center gap-1 text-[11px] font-semibold cursor-pointer transition-colors ${reply.user_has_liked
-                                ? "text-red-500"
-                                : "text-zinc-450 hover:text-red-550 dark:text-zinc-500"
-                                }`}
-                              title="Like balasan ini"
-                            >
-                              <Heart
-                                className="h-3.5 w-3.5"
-                                fill={reply.user_has_liked ? "currentColor" : "none"}
-                              />
-                              <span>{reply.likes_count}</span>
-                            </button>
-                            {currentUser?.id === reply.user_id && (
-                              <button
-                                onClick={() => {
-                                  setEditingCommentId(reply.id);
-                                  setEditBody(reply.body);
-                                }}
-                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-450 hover:text-brand-blue dark:text-zinc-500 transition-colors cursor-pointer"
-                                title="Edit balasan ini"
-                              >
-                                <Edit2 className="h-3.5 w-3.5" />
-                                <span>Edit</span>
-                              </button>
-                            )}
-                            {isAdminOrModerator && (
-                              <button
-                                onClick={() => handleDeleteComment(reply.id)}
-                                disabled={deletingCommentId === reply.id}
-                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-450 hover:text-red-500 dark:text-zinc-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Hapus balasan ini"
-                              >
-                                {deletingCommentId === reply.id ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                )}
-                                <span>Hapus</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        <div className="w-56 bg-zinc-100/40 dark:bg-zinc-900/40 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800">
-                          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono block mb-1">
-                            Dijawab oleh:
-                          </span>
-                          <div className="flex items-center gap-2">
-                            {reply.user.avatar_url ? (
-                              <img
-                                src={resolveAvatar(reply.user.avatar_url)}
-                                alt={reply.user.username}
-                                className="h-6 w-6 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="h-6 w-6 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-[10px] shadow-inner uppercase shrink-0">
-                                {reply.user.username ? reply.user.username.charAt(0) : '?'}
-                              </div>
-                            )}
-                            <div className="text-left">
-                              <span className="block text-xs font-bold text-zinc-700 dark:text-zinc-200">
-                                {reply.user.username}
-                              </span>
-                              <span className="text-[9px] text-zinc-400 font-mono">
-                                Rep: {reply.user.reputation_points.toLocaleString()} •{" "}
-                                {formatDate(reply.created_at)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
       {/* ADD ANSWER / COMMENT FORM */}
       <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-850 space-y-4">
         <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white">
@@ -1620,253 +1429,447 @@ export default function QuestionDetailPage({
         <div className="mt-8 pt-4 border-t border-zinc-100 dark:border-zinc-900/60 space-y-3.5">
           <h4 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
             <MessageSquare className="h-3.5 w-3.5" />
-            <span>Komentar Pertanyaan ({post.comments.length})</span>
+            <span>
+              Komentar Pertanyaan (
+              {post.comments.filter((c: Comment) => !c.parent_id).reduce((acc: number, c: Comment) => acc + 1 + (c.replies?.length || 0), 0)}
+              )
+            </span>
           </h4>
 
-          {post.comments.length > 0 && (
-            <div className="divide-y divide-zinc-100 dark:divide-zinc-900 pl-3 sm:pl-4 border-l-2 border-zinc-200 dark:border-zinc-800 space-y-2.5 pb-2">
-              {post.comments.map((comm: Comment) => (
-                <div
-                  key={comm.id}
-                  className="group flex gap-3 text-xs text-zinc-650 dark:text-zinc-350 pt-2 first:pt-0 leading-relaxed font-sans"
-                >
-                  {/* VOTES & LIKE COLUMN */}
-                  <div className="flex flex-col items-center gap-0.5 text-center shrink-0 pt-0.5 min-w-[24px]">
-                    <button
-                      onClick={() => handleVote(comm.id, "upvote", true)}
-                      disabled={currentUser?.id === comm.user_id}
-                      className={`p-0.5 rounded-full transition-colors ${
-                        currentUser?.id === comm.user_id
-                          ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed opacity-50"
-                          : comm.user_vote_type === "upvote"
-                          ? "text-brand-blue bg-brand-blue/10 cursor-pointer"
-                          : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-brand-blue cursor-pointer"
-                      }`}
-                      title={currentUser?.id === comm.user_id ? "Anda tidak dapat memberikan upvote pada komentar Anda sendiri" : "Sangat membantu (Mendukung)"}
-                    >
-                      <ChevronUp className="h-4 w-4 stroke-[3.0]" />
-                    </button>
-                    <span className="text-[10px] font-bold font-mono text-zinc-700 dark:text-zinc-300">
-                      {comm.votes_count}
-                    </span>
-                    <button
-                      onClick={() => handleVote(comm.id, "downvote", true)}
-                      disabled={currentUser?.id === comm.user_id}
-                      className={`p-0.5 rounded-full transition-colors ${
-                        currentUser?.id === comm.user_id
-                          ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed opacity-50"
-                          : comm.user_vote_type === "downvote"
-                          ? "text-red-500 bg-red-500/10 cursor-pointer"
-                          : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-red-500 cursor-pointer"
-                      }`}
-                      title={currentUser?.id === comm.user_id ? "Anda tidak dapat memberikan downvote pada komentar Anda sendiri" : "Kurang membantu (Menolak)"}
-                    >
-                      <ChevronDown className="h-4 w-4 stroke-[3.0]" />
-                    </button>
+          {post.comments.filter((c: Comment) => !c.parent_id).length > 0 && (
+            <div className="divide-y divide-zinc-100 dark:divide-zinc-900 pl-3 sm:pl-4 border-l-2 border-zinc-200 dark:border-zinc-800 space-y-4 pb-2">
+              {post.comments
+                .filter((c: Comment) => !c.parent_id)
+                .map((comm: Comment) => (
+                  <div key={comm.id} className="pt-4 first:pt-0 pb-2 space-y-4">
+                    {/* Parent Comment Card */}
+                    <div className="group flex gap-3 text-xs text-zinc-650 dark:text-zinc-350 leading-relaxed font-sans">
+                      {/* VOTES & LIKE COLUMN */}
+                      <div className="flex flex-col items-center gap-0.5 text-center shrink-0 pt-0.5 min-w-[24px]">
+                        <button
+                          onClick={() => handleVote(comm.id, "upvote", true)}
+                          disabled={currentUser?.id === comm.user_id}
+                          className={`p-0.5 rounded-full transition-colors ${
+                            currentUser?.id === comm.user_id
+                              ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed opacity-50"
+                              : comm.user_vote_type === "upvote"
+                              ? "text-brand-blue bg-brand-blue/10 cursor-pointer"
+                              : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-brand-blue cursor-pointer"
+                          }`}
+                          title={currentUser?.id === comm.user_id ? "Anda tidak dapat memberikan upvote pada komentar Anda sendiri" : "Sangat membantu (Mendukung)"}
+                        >
+                          <ChevronUp className="h-4 w-4 stroke-[3.0]" />
+                        </button>
+                        <span className="text-[10px] font-bold font-mono text-zinc-700 dark:text-zinc-300">
+                          {comm.votes_count}
+                        </span>
+                        <button
+                          onClick={() => handleVote(comm.id, "downvote", true)}
+                          disabled={currentUser?.id === comm.user_id}
+                          className={`p-0.5 rounded-full transition-colors ${
+                            currentUser?.id === comm.user_id
+                              ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed opacity-50"
+                              : comm.user_vote_type === "downvote"
+                              ? "text-red-500 bg-red-500/10 cursor-pointer"
+                              : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-red-500 cursor-pointer"
+                          }`}
+                          title={currentUser?.id === comm.user_id ? "Anda tidak dapat memberikan downvote pada komentar Anda sendiri" : "Kurang membantu (Menolak)"}
+                        >
+                          <ChevronDown className="h-4 w-4 stroke-[3.0]" />
+                        </button>
 
-                    <button
-                      onClick={(e) => handleCommentLike(e, comm.id)}
-                      className={`mt-1 p-0.5 rounded-full cursor-pointer transition-colors ${comm.user_has_liked
-                        ? "text-red-500"
-                        : "text-zinc-400 hover:text-red-550 dark:text-zinc-500"
-                        }`}
-                      title="Like komentar ini"
-                    >
-                      <Heart
-                        className="h-3.5 w-3.5"
-                        fill={comm.user_has_liked ? "currentColor" : "none"}
-                      />
-                    </button>
-                    <span className="text-[9px] font-mono text-zinc-450 dark:text-zinc-500">
-                      {comm.likes_count}
-                    </span>
-                  </div>
-
-                  {/* COMMENT CONTENT COLUMN */}
-                  <div className="flex-1 min-w-0 pt-0.5 flex flex-col">
-                    {/* User Card (Kiri Atas & Tombol Solusi Kanan) */}
-                    <div className="flex items-center justify-between mb-2 w-full">
-                      <div className="flex items-center gap-2">
-                        {comm.user.avatar_url ? (
-                          <img
-                            src={resolveAvatar(comm.user.avatar_url)}
-                            alt={comm.user.username}
-                            className="h-6 w-6 rounded-full object-cover"
+                        <button
+                          onClick={(e) => handleCommentLike(e, comm.id)}
+                          className={`mt-1 p-0.5 rounded-full cursor-pointer transition-colors ${comm.user_has_liked
+                            ? "text-red-500"
+                            : "text-zinc-400 hover:text-red-550 dark:text-zinc-500"
+                            }`}
+                          title="Like komentar ini"
+                        >
+                          <Heart
+                            className="h-3.5 w-3.5"
+                            fill={comm.user_has_liked ? "currentColor" : "none"}
                           />
-                        ) : (
-                          <div className="h-6 w-6 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-[10px] shadow-inner uppercase shrink-0">
-                            {comm.user.username ? comm.user.username.charAt(0) : '?'}
-                          </div>
-                        )}
-                        <span className="font-bold text-zinc-850 dark:text-zinc-200">
-                          {comm.user.username}
+                        </button>
+                        <span className="text-[9px] font-mono text-zinc-450 dark:text-zinc-500">
+                          {comm.likes_count}
                         </span>
                       </div>
 
-                      {/* MARK AS ANSWER BUTTON */}
-                      {isPostOwner && comm.user_id !== post.user_id && (
-                        <div className="flex items-center gap-1 shrink-0">
-                          {comm.is_accepted === 1 ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-sans">
+                      {/* COMMENT CONTENT COLUMN */}
+                      <div className="flex-1 min-w-0 pt-0.5 flex flex-col">
+                        {/* User Card (Kiri Atas & Tombol Solusi Kanan) */}
+                        <div className="flex items-center justify-between mb-2 w-full">
+                          <div className="flex items-center gap-2">
+                            {comm.user.avatar_url ? (
+                              <img
+                                src={resolveAvatar(comm.user.avatar_url)}
+                                alt={comm.user.username}
+                                className="h-6 w-6 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="h-6 w-6 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-[10px] shadow-inner uppercase shrink-0">
+                                {comm.user.username ? comm.user.username.charAt(0) : '?'}
+                              </div>
+                            )}
+                            <span className="font-bold text-zinc-850 dark:text-zinc-200">
+                              {comm.user.username}
+                            </span>
+                          </div>
+
+                          {/* MARK AS ANSWER BUTTON */}
+                          {isPostOwner && comm.user_id !== post.user_id && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              {comm.is_accepted === 1 ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-sans">
+                                  ✓ Solusi Disepakati
+                                </span>
+                              ) : (
+                                !hasAcceptedAnswer && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAcceptAnswer(comm.id)}
+                                    disabled={acceptingAnswerId === comm.id}
+                                    className="inline-flex items-center gap-1 text-[10px] font-bold text-zinc-400 hover:text-emerald-600 dark:text-zinc-500 dark:hover:text-emerald-400 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                                    title="Tandai sebagai solusi/jawaban terbaik"
+                                  >
+                                    {acceptingAnswerId === comm.id ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Check className="h-3.5 w-3.5" />
+                                    )}
+                                    <span>Tandai Solusi</span>
+                                  </button>
+                                )
+                              )}
+                            </div>
+                          )}
+                          {!isPostOwner && comm.is_accepted === 1 && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-sans shrink-0">
                               ✓ Solusi Disepakati
                             </span>
-                          ) : (
-                            !hasAcceptedAnswer && (
-                              <button
-                                type="button"
-                                onClick={() => handleAcceptAnswer(comm.id)}
-                                disabled={acceptingAnswerId === comm.id}
-                                className="inline-flex items-center gap-1 text-[10px] font-bold text-zinc-400 hover:text-emerald-600 dark:text-zinc-500 dark:hover:text-emerald-400 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
-                                title="Tandai sebagai solusi/jawaban terbaik"
-                              >
-                                {acceptingAnswerId === comm.id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <Check className="h-3.5 w-3.5" />
-                                )}
-                                <span>Tandai Solusi</span>
-                              </button>
-                            )
                           )}
                         </div>
-                      )}
-                      {!isPostOwner && comm.is_accepted === 1 && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-sans shrink-0">
-                          ✓ Solusi Disepakati
-                        </span>
-                      )}
+
+                        {/* Comment Body */}
+                        {editingCommentId === comm.id ? (
+                          <form onSubmit={(e) => handleEditComment(e, comm.id)} className="mt-1 space-y-2.5 pl-0.5">
+                            <textarea
+                              rows={3}
+                              value={editBody}
+                              onChange={(e) => setEditBody(e.target.value)}
+                              disabled={submittingEdit}
+                              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-3 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all disabled:opacity-60"
+                              required
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <button type="submit" disabled={submittingEdit} className="bg-brand-blue hover:bg-brand-blue-hover text-white text-[11px] font-semibold px-3 py-1.5 rounded flex items-center gap-1.5 cursor-pointer">
+                                {submittingEdit && <Loader2 className="h-3 w-3 animate-spin" />}
+                                <span>Simpan</span>
+                              </button>
+                              <button type="button" onClick={() => setEditingCommentId(null)} className="border border-zinc-200 dark:border-zinc-855 text-zinc-650 bg-white dark:bg-zinc-950 text-[11px] font-semibold px-3 py-1.5 rounded hover:bg-zinc-50 cursor-pointer">
+                                Batal
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <div className="ql-snow pl-0.5">
+                            {renderQuillBody(comm.body)}
+                          </div>
+                        )}
+
+                        {/* Date & Reply Action (Di Bawah Komen) */}
+                        <div className="flex items-center gap-3 mt-2 pl-0.5 text-[10px] text-zinc-455 dark:text-zinc-500">
+                          <span className="font-mono">{formatDate(comm.created_at)}</span>
+                          <span>•</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (replyingToCommentId === comm.id) {
+                                setReplyingToCommentId(null);
+                                setReplyBody("");
+                              } else {
+                                setReplyingToCommentId(comm.id);
+                                setReplyBody("");
+                                setEditingCommentId(null);
+                              }
+                            }}
+                            className="hover:text-brand-blue cursor-pointer font-sans font-bold transition-colors"
+                          >
+                            {replyingToCommentId === comm.id ? "Batal" : "Balas"}
+                          </button>
+                          {currentUser?.id === comm.user_id && (
+                            <>
+                              <span>•</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCommentId(comm.id);
+                                  setEditBody(comm.body);
+                                  setReplyingToCommentId(null);
+                                }}
+                                className="hover:text-brand-blue cursor-pointer font-sans font-bold transition-colors flex items-center gap-1"
+                              >
+                                <Edit2 className="h-3 w-3" />
+                                <span>Edit</span>
+                              </button>
+                            </>
+                          )}
+                          {isAdminOrModerator && (
+                            <>
+                              <span>•</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteComment(comm.id)}
+                                disabled={deletingCommentId === comm.id}
+                                className="hover:text-red-500 cursor-pointer font-sans font-bold transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {deletingCommentId === comm.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3 w-3" />
+                                )}
+                                <span>Hapus</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Inline Reply Form */}
+                        {replyingToCommentId === comm.id && (
+                          <form
+                            onSubmit={(e) => handleSendReply(e, comm.id)}
+                            className="mt-3 pl-0.5 space-y-2.5"
+                          >
+                            <textarea
+                              rows={3}
+                              placeholder={
+                                currentUser
+                                  ? `Balas komentar @${comm.user.username}...`
+                                  : "Silakan masuk (login) terlebih dahulu untuk membalas..."
+                              }
+                              value={replyBody}
+                              onChange={(e) => setReplyBody(e.target.value)}
+                              disabled={submittingReply || !currentUser}
+                              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-3 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 focus:border-brand-blue transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                              required
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                type="submit"
+                                disabled={submittingReply || !currentUser}
+                                className="bg-brand-blue hover:bg-brand-blue-hover text-white text-[11px] font-semibold px-3 py-1.5 rounded shadow-sm flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                              >
+                                {submittingReply && <Loader2 className="h-3 w-3 animate-spin" />}
+                                <span>Kirim Balasan</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReplyingToCommentId(null);
+                                  setReplyBody("");
+                                }}
+                                className="border border-zinc-200 dark:border-zinc-850 text-zinc-650 dark:text-zinc-350 bg-white dark:bg-zinc-950 text-[11px] font-semibold px-3 py-1.5 rounded hover:bg-zinc-50 dark:hover:bg-zinc-900 cursor-pointer"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          </form>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Comment Body */}
-                    {editingCommentId === comm.id ? (
-                      <form onSubmit={(e) => handleEditComment(e, comm.id)} className="mt-1 space-y-2.5 pl-0.5">
-                        <textarea
-                          rows={3}
-                          value={editBody}
-                          onChange={(e) => setEditBody(e.target.value)}
-                          disabled={submittingEdit}
-                          className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-3 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all disabled:opacity-60"
-                          required
-                          autoFocus
-                        />
-                        <div className="flex gap-2">
-                          <button type="submit" disabled={submittingEdit} className="bg-brand-blue hover:bg-brand-blue-hover text-white text-[11px] font-semibold px-3 py-1.5 rounded flex items-center gap-1.5 cursor-pointer">
-                            {submittingEdit && <Loader2 className="h-3 w-3 animate-spin" />}
-                            <span>Simpan</span>
-                          </button>
-                          <button type="button" onClick={() => setEditingCommentId(null)} className="border border-zinc-200 dark:border-zinc-850 text-zinc-650 bg-white dark:bg-zinc-950 text-[11px] font-semibold px-3 py-1.5 rounded hover:bg-zinc-50 cursor-pointer">
-                            Batal
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <div className="ql-snow pl-0.5">
-                        {renderQuillBody(comm.body)}
+                    {/* Nested Replies */}
+                    {comm.replies && comm.replies.length > 0 && (
+                      <div className="ml-6 sm:ml-10 pl-4 border-l border-zinc-200 dark:border-zinc-800 space-y-3.5 mt-2">
+                        {comm.replies.map((reply: Comment) => (
+                          <div
+                            key={reply.id}
+                            className="group flex gap-3 text-xs text-zinc-650 dark:text-zinc-350 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/30 dark:bg-zinc-900/10 leading-relaxed font-sans"
+                          >
+                            {/* VOTES COLUMN FOR REPLY */}
+                            <div className="flex flex-col items-center gap-0.5 text-center shrink-0 pt-0.5 min-w-[24px]">
+                              <button
+                                onClick={() => handleVote(reply.id, "upvote", true)}
+                                disabled={currentUser?.id === reply.user_id}
+                                className={`p-0.5 rounded-full transition-colors ${
+                                  currentUser?.id === reply.user_id
+                                    ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed opacity-50"
+                                    : reply.user_vote_type === "upvote"
+                                    ? "text-brand-blue bg-brand-blue/10 cursor-pointer"
+                                    : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-brand-blue cursor-pointer"
+                                }`}
+                                title={currentUser?.id === reply.user_id ? "Anda tidak dapat memberikan upvote pada balasan Anda sendiri" : "Sangat membantu (Mendukung)"}
+                              >
+                                <ChevronUp className="h-4 w-4 stroke-[3.0]" />
+                              </button>
+                              <span className="text-[10px] font-bold font-mono text-zinc-700 dark:text-zinc-300">
+                                {reply.votes_count}
+                              </span>
+                              <button
+                                onClick={() => handleVote(reply.id, "downvote", true)}
+                                disabled={currentUser?.id === reply.user_id}
+                                className={`p-0.5 rounded-full transition-colors ${
+                                  currentUser?.id === reply.user_id
+                                    ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed opacity-50"
+                                    : reply.user_vote_type === "downvote"
+                                    ? "text-red-500 bg-red-500/10 cursor-pointer"
+                                    : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-red-550 cursor-pointer"
+                                }`}
+                                title={currentUser?.id === reply.user_id ? "Anda tidak dapat memberikan downvote pada balasan Anda sendiri" : "Kurang membantu (Menolak)"}
+                              >
+                                <ChevronDown className="h-4 w-4 stroke-[3.0]" />
+                              </button>
+
+                              <button
+                                onClick={(e) => handleCommentLike(e, reply.id)}
+                                className={`mt-1 p-0.5 rounded-full cursor-pointer transition-colors ${reply.user_has_liked
+                                  ? "text-red-500"
+                                  : "text-zinc-400 hover:text-red-555 dark:text-zinc-500"
+                                  }`}
+                                title="Like balasan ini"
+                              >
+                                <Heart
+                                  className="h-3.5 w-3.5"
+                                  fill={reply.user_has_liked ? "currentColor" : "none"}
+                                />
+                              </button>
+                              <span className="text-[9px] font-mono text-zinc-450 dark:text-zinc-500">
+                                {reply.likes_count}
+                              </span>
+                            </div>
+
+                            {/* REPLY CONTENT COLUMN */}
+                            <div className="flex-1 min-w-0 pt-0.5 flex flex-col">
+                              {/* User details */}
+                              <div className="flex items-center justify-between mb-2 w-full">
+                                <div className="flex items-center gap-2">
+                                  {reply.user.avatar_url ? (
+                                    <img
+                                      src={resolveAvatar(reply.user.avatar_url)}
+                                      alt={reply.user.username}
+                                      className="h-6 w-6 rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="h-6 w-6 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-[10px] shadow-inner uppercase shrink-0">
+                                      {reply.user.username ? reply.user.username.charAt(0) : '?'}
+                                    </div>
+                                  )}
+                                  <span className="font-bold text-zinc-850 dark:text-zinc-200">
+                                    {reply.user.username}
+                                  </span>
+                                </div>
+
+                                {/* Mark as solution checkmark */}
+                                {isPostOwner && reply.user_id !== post.user_id && (
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {reply.is_accepted === 1 ? (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-sans">
+                                        ✓ Solusi Disepakati
+                                      </span>
+                                    ) : (
+                                      !hasAcceptedAnswer && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleAcceptAnswer(reply.id)}
+                                          disabled={acceptingAnswerId === reply.id}
+                                          className="inline-flex items-center gap-1 text-[10px] font-bold text-zinc-400 hover:text-emerald-600 dark:text-zinc-500 dark:hover:text-emerald-400 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                                          title="Tandai sebagai solusi/jawaban terbaik"
+                                        >
+                                          {acceptingAnswerId === reply.id ? (
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                          ) : (
+                                            <Check className="h-3.5 w-3.5" />
+                                          )}
+                                          <span>Tandai Solusi</span>
+                                        </button>
+                                      )
+                                    )}
+                                  </div>
+                                )}
+                                {!isPostOwner && reply.is_accepted === 1 && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-sans shrink-0">
+                                    ✓ Solusi Disepakati
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Reply body */}
+                              {editingCommentId === reply.id ? (
+                                <form onSubmit={(e) => handleEditComment(e, reply.id)} className="mt-1 space-y-2.5 pl-0.5">
+                                  <textarea
+                                    rows={3}
+                                    value={editBody}
+                                    onChange={(e) => setEditBody(e.target.value)}
+                                    disabled={submittingEdit}
+                                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-850 bg-zinc-50 dark:bg-zinc-900/50 p-3 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all disabled:opacity-60"
+                                    required
+                                    autoFocus
+                                  />
+                                  <div className="flex gap-2">
+                                    <button type="submit" disabled={submittingEdit} className="bg-brand-blue hover:bg-brand-blue-hover text-white text-[11px] font-semibold px-3 py-1.5 rounded flex items-center gap-1.5 cursor-pointer">
+                                      {submittingEdit && <Loader2 className="h-3 w-3 animate-spin" />}
+                                      <span>Simpan</span>
+                                    </button>
+                                    <button type="button" onClick={() => setEditingCommentId(null)} className="border border-zinc-200 dark:border-zinc-850 text-zinc-650 bg-white dark:bg-zinc-950 text-[11px] font-semibold px-3 py-1.5 rounded hover:bg-zinc-50 cursor-pointer">
+                                      Batal
+                                    </button>
+                                  </div>
+                                </form>
+                              ) : (
+                                <div className="ql-snow pl-0.5">
+                                  {renderQuillBody(reply.body)}
+                                </div>
+                              )}
+
+                              {/* Reply actions */}
+                              <div className="flex items-center gap-3 mt-2 pl-0.5 text-[10px] text-zinc-455 dark:text-zinc-500">
+                                <span className="font-mono">{formatDate(reply.created_at)}</span>
+                                {currentUser?.id === reply.user_id && (
+                                  <>
+                                    <span>•</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingCommentId(reply.id);
+                                        setEditBody(reply.body);
+                                        setReplyingToCommentId(null);
+                                      }}
+                                      className="hover:text-brand-blue cursor-pointer font-sans font-bold transition-colors flex items-center gap-1"
+                                    >
+                                      <Edit2 className="h-3 w-3" />
+                                      <span>Edit</span>
+                                    </button>
+                                  </>
+                                )}
+                                {isAdminOrModerator && (
+                                  <>
+                                    <span>•</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteComment(reply.id)}
+                                      disabled={deletingCommentId === reply.id}
+                                      className="hover:text-red-500 cursor-pointer font-sans font-bold transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      {deletingCommentId === reply.id ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="h-3 w-3" />
+                                      )}
+                                      <span>Hapus</span>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
-
-                    {/* Date & Reply Action (Di Bawah Komen) */}
-                    <div className="flex items-center gap-3 mt-2 pl-0.5 text-[10px] text-zinc-455 dark:text-zinc-500">
-                      <span className="font-mono">{formatDate(comm.created_at)}</span>
-                      <span>•</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (replyingToCommentId === comm.id) {
-                            setReplyingToCommentId(null);
-                            setReplyBody("");
-                          } else {
-                            setReplyingToCommentId(comm.id);
-                            setReplyBody("");
-                            setEditingCommentId(null);
-                          }
-                        }}
-                        className="hover:text-brand-blue cursor-pointer font-sans font-bold transition-colors"
-                      >
-                        {replyingToCommentId === comm.id ? "Batal" : "Balas"}
-                      </button>
-                      {currentUser?.id === comm.user_id && (
-                        <>
-                          <span>•</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingCommentId(comm.id);
-                              setEditBody(comm.body);
-                              setReplyingToCommentId(null);
-                            }}
-                            className="hover:text-brand-blue cursor-pointer font-sans font-bold transition-colors flex items-center gap-1"
-                          >
-                            <Edit2 className="h-3 w-3" />
-                            <span>Edit</span>
-                          </button>
-                        </>
-                      )}
-                      {isAdminOrModerator && (
-                        <>
-                          <span>•</span>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteComment(comm.id)}
-                            disabled={deletingCommentId === comm.id}
-                            className="hover:text-red-500 cursor-pointer font-sans font-bold transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {deletingCommentId === comm.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-3 w-3" />
-                            )}
-                            <span>Hapus</span>
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Inline Reply Form */}
-                    {replyingToCommentId === comm.id && (
-                      <form
-                        onSubmit={(e) => handleSendReply(e, comm.id)}
-                        className="mt-3 pl-0.5 space-y-2.5"
-                      >
-                        <textarea
-                          rows={3}
-                          placeholder={
-                            currentUser
-                              ? `Balas komentar @${comm.user.username}...`
-                              : "Silakan masuk (login) terlebih dahulu untuk membalas..."
-                          }
-                          value={replyBody}
-                          onChange={(e) => setReplyBody(e.target.value)}
-                          disabled={submittingReply || !currentUser}
-                          className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-3 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 focus:border-brand-blue transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                          required
-                          autoFocus
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            type="submit"
-                            disabled={submittingReply || !currentUser}
-                            className="bg-brand-blue hover:bg-brand-blue-hover text-white text-[11px] font-semibold px-3 py-1.5 rounded shadow-sm flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          >
-                            {submittingReply && <Loader2 className="h-3 w-3 animate-spin" />}
-                            <span>Kirim Balasan</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReplyingToCommentId(null);
-                              setReplyBody("");
-                            }}
-                            className="border border-zinc-200 dark:border-zinc-850 text-zinc-650 dark:text-zinc-350 bg-white dark:bg-zinc-950 text-[11px] font-semibold px-3 py-1.5 rounded hover:bg-zinc-50 dark:hover:bg-zinc-900 cursor-pointer"
-                          >
-                            Batal
-                          </button>
-                        </div>
-                      </form>
-                    )}
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           )}
 

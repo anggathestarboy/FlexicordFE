@@ -43,7 +43,7 @@ export default function Navbar({
   });
 
   const unreadCount = notificationsData?.success && Array.isArray(notificationsData.data?.data)
-    ? notificationsData.data.data.filter((n: any) => !n.read_at).length
+    ? notificationsData.data.data.filter((n: any) => n.is_read === 0 || (n.read_at === null && n.is_read === undefined)).length
     : 0;
 
   const handleSearchChange = (val: string) => {

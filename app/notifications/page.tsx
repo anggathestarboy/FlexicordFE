@@ -13,18 +13,41 @@ import {
   Loader2, 
   Inbox, 
   Info,
-  Calendar
+  Calendar,
+  UserPlus,
+  CheckCircle,
+  HelpCircle,
+  Clock
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+
+interface Actor {
+  id: string;
+  username: string;
+  email: string;
+  avatar_url: string | null;
+  bio: string | null;
+  reputation_points: number;
+  level: number;
+  is_banned: number;
+  created_at: string;
+  updated_at: string;
+}
 
 interface Notification {
   id: string;
   user_id: string;
+  actor_id?: string;
   type: string;
-  data: any;
-  read_at: string | null;
+  reference_id: string | null;
+  reference_type: string | null;
+  is_read: number;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
+  actor?: Actor;
+  // Fallbacks
+  data?: any;
+  read_at?: string | null;
 }
 
 interface PaginationLink {
@@ -100,71 +123,105 @@ export default function NotificationsPage() {
   });
 
   const getNotificationLink = (notification: Notification): string | null => {
-    const data = notification.data || {};
-    const postId = data.post_id || data.id || data.post?.id || data.target_id;
-    if (postId) {
-      return `/posts/${postId}`;
+    // If follow type, link to follower's profile
+    if (notification.type === "follow" && notification.actor?.username) {
+      return `/profile/${notification.actor.username}`;
+    }
+    // If it has reference_id, link to the post
+    if (notification.reference_id) {
+      return `/posts/${notification.reference_id}`;
     }
     return null;
   };
 
   const getNotificationMessage = (notification: Notification): string => {
-    const data = notification.data || {};
-    if (typeof data === "string") return data;
-    if (data.message) return data.message;
+    const type = notification.type;
 
-    const sender = data.sender_username || data.username || "Seseorang";
-    const typeLower = notification.type.toLowerCase();
-
-    if (typeLower.includes("like")) {
-      return `${sender} menyukai postingan Anda.`;
+    switch (type) {
+      case "follow":
+        return "mulai mengikuti Anda.";
+      case "answer_accepted":
+        return "menyetujui jawaban Anda sebagai solusi terbaik.";
+      case "new_post":
+      case "post":
+        return "membagikan postingan baru.";
+      case "new_comment":
+      case "comment":
+        return "memberikan komentar pada postingan Anda.";
+      case "new_answer":
+      case "answer":
+        return "menjawab pertanyaan Anda.";
+      case "like":
+      case "post_liked":
+        return "menyukai postingan Anda.";
+      case "bookmark":
+      case "post_bookmarked":
+        return "menyimpan postingan Anda ke bookmark.";
+      default:
+        return `melakukan interaksi (${type}) pada akun Anda.`;
     }
-    if (typeLower.includes("comment")) {
-      return `${sender} memberikan komentar pada postingan Anda.`;
-    }
-    if (typeLower.includes("answer")) {
-      return `${sender} memberikan jawaban pada pertanyaan Anda.`;
-    }
-    if (typeLower.includes("bookmark")) {
-      return `${sender} menyimpan postingan Anda ke bookmark.`;
-    }
-
-    return data.title || "Anda menerima notifikasi baru.";
   };
 
   const getNotificationIcon = (type: string) => {
-    const typeLower = type.toLowerCase();
-    if (typeLower.includes("like")) {
-      return (
-        <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-500">
-          <Heart className="h-5 w-5 fill-current" />
-        </div>
-      );
+    switch (type) {
+      case "follow":
+        return (
+          <div className="p-1 rounded-full bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 border border-white dark:border-zinc-950 shadow-xs shrink-0">
+            <UserPlus className="h-3 w-3" />
+          </div>
+        );
+      case "answer_accepted":
+        return (
+          <div className="p-1 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border border-white dark:border-zinc-950 shadow-xs shrink-0">
+            <CheckCircle className="h-3 w-3" />
+          </div>
+        );
+      case "new_comment":
+      case "comment":
+        return (
+          <div className="p-1 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-white dark:border-zinc-950 shadow-xs shrink-0">
+            <MessageSquare className="h-3 w-3" />
+          </div>
+        );
+      case "new_answer":
+      case "answer":
+        return (
+          <div className="p-1 rounded-full bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 border border-white dark:border-zinc-950 shadow-xs shrink-0">
+            <HelpCircle className="h-3 w-3" />
+          </div>
+        );
+      case "like":
+      case "post_liked":
+        return (
+          <div className="p-1 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 border border-white dark:border-zinc-950 shadow-xs shrink-0">
+            <Heart className="h-3 w-3 fill-current" />
+          </div>
+        );
+      case "bookmark":
+      case "post_bookmarked":
+        return (
+          <div className="p-1 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-white dark:border-zinc-950 shadow-xs shrink-0">
+            <Bookmark className="h-3 w-3 fill-current" />
+          </div>
+        );
+      default:
+        return (
+          <div className="p-1 rounded-full bg-zinc-150 dark:bg-zinc-800 text-zinc-650 dark:text-zinc-350 border border-white dark:border-zinc-950 shadow-xs shrink-0">
+            <Bell className="h-3 w-3" />
+          </div>
+        );
     }
-    if (typeLower.includes("comment") || typeLower.includes("answer")) {
-      return (
-        <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 text-blue-500">
-          <MessageSquare className="h-5 w-5" />
-        </div>
-      );
-    }
-    if (typeLower.includes("bookmark")) {
-      return (
-        <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-500">
-          <Bookmark className="h-5 w-5 fill-current" />
-        </div>
-      );
-    }
-    return (
-      <div className="p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
-        <Bell className="h-5 w-5" />
-      </div>
-    );
+  };
+
+  const getAvatarSrc = (avatarUrl: string | null | undefined) => {
+    if (!avatarUrl) return null;
+    if (avatarUrl.startsWith("http")) return avatarUrl;
+    return `https://pegaduanmasyarakat.alwaysdata.net/storage/${avatarUrl}`;
   };
 
   const formatDate = (dateStr: string): string => {
     try {
-      const date = new Date(dateStr);
+      const date = new Date(dateStr.replace(/-/g, "/"));
       return date.toLocaleDateString("id-ID", {
         day: "numeric",
         month: "short",
@@ -242,7 +299,9 @@ export default function NotificationsPage() {
   const paginatedData = data?.data;
   const notificationsList = paginatedData?.data || [];
   const totalNotifications = paginatedData?.total || 0;
-  const hasUnread = notificationsList.some((n) => !n.read_at);
+  
+  // Real API check for read state
+  const hasUnread = notificationsList.some((n) => n.is_read === 0 || (n.read_at === null && n.is_read === undefined));
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 py-2">
@@ -292,6 +351,10 @@ export default function NotificationsPage() {
         <div className="space-y-3">
           {notificationsList.map((notification) => {
             const hasLink = !!getNotificationLink(notification);
+            const isUnread = notification.is_read === 0 || (notification.read_at === null && notification.is_read === undefined);
+            const actor = notification.actor;
+            const avatarSrc = getAvatarSrc(actor?.avatar_url);
+
             return (
               <div
                 key={notification.id}
@@ -301,32 +364,70 @@ export default function NotificationsPage() {
                     router.push(link);
                   }
                 }}
-                className={`group flex items-start gap-4 p-5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl transition-all relative ${
+                className={`group flex items-start gap-4.5 p-5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl transition-all relative ${
                   hasLink ? "cursor-pointer hover:border-brand-blue" : ""
-                } ${!notification.read_at ? "border-l-4 border-l-brand-blue bg-brand-blue/1 dark:bg-brand-blue/3" : ""}`}
+                } ${isUnread ? "border-l-4 border-l-brand-blue bg-brand-blue/1 dark:bg-brand-blue/3" : ""}`}
               >
-                {getNotificationIcon(notification.type)}
+                {/* Notification Icon Badge overlay on top of actor avatar */}
+                <div className="relative shrink-0">
+                  <div
+                    onClick={(e) => {
+                      if (actor?.username) {
+                        e.stopPropagation();
+                        router.push(`/profile/${actor.username}`);
+                      }
+                    }}
+                    className="h-10 w-10 rounded-full border border-zinc-150 dark:border-zinc-800 overflow-hidden cursor-pointer hover:opacity-90 active:scale-95 transition-all"
+                  >
+                    {avatarSrc ? (
+                      <img
+                        src={avatarSrc}
+                        alt={actor?.username || "Actor"}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-brand-blue/10 flex items-center justify-center text-brand-blue text-sm font-bold uppercase">
+                        {actor?.username ? actor.username.charAt(0) : "?"}
+                      </div>
+                    )}
+                  </div>
+                  {/* Miniature type icon badge */}
+                  <div className="absolute -bottom-1 -right-1">
+                    {getNotificationIcon(notification.type)}
+                  </div>
+                </div>
 
                 <div className="flex-1 space-y-1 min-w-0">
                   <div className="flex items-start justify-between gap-4">
-                    <p className="text-sm text-zinc-800 dark:text-zinc-200 font-medium leading-snug group-hover:text-brand-blue transition-colors">
-                      {getNotificationMessage(notification)}
-                    </p>
+                    <div className="text-sm text-zinc-600 dark:text-zinc-300 leading-snug">
+                      <span 
+                        onClick={(e) => {
+                          if (actor?.username) {
+                            e.stopPropagation();
+                            router.push(`/profile/${actor.username}`);
+                          }
+                        }}
+                        className="font-bold text-zinc-900 dark:text-white hover:text-brand-blue hover:underline cursor-pointer transition-colors"
+                      >
+                        {actor?.username || "Seseorang"}
+                      </span>{" "}
+                      <span>{getNotificationMessage(notification)}</span>
+                    </div>
 
                     {/* Unread indicator dot */}
-                    {!notification.read_at && (
+                    {isUnread && (
                       <span className="h-2 w-2 rounded-full bg-brand-blue shrink-0 mt-1.5" />
                     )}
                   </div>
 
-                  {notification.data?.post_title && (
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 italic font-mono truncate">
-                      Post: "{notification.data.post_title}"
-                    </p>
+                  {notification.reference_type && notification.reference_id && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-brand-blue/90 dark:text-brand-blue/70 font-semibold font-mono">
+                      <span>Ref: {notification.reference_type}</span>
+                    </div>
                   )}
 
                   <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-zinc-500 font-medium pt-1">
-                    <Calendar className="h-3 w-3 text-zinc-450 dark:text-zinc-550" />
+                    <Clock className="h-3 w-3" />
                     <span>{formatDate(notification.created_at)}</span>
                   </div>
                 </div>
