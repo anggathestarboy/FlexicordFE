@@ -1,0 +1,15 @@
+{
+    "name": "Flexicord - Ada Masalah?",
+    "short_name" : "Flexicord",
+    "start_url": "/",
+    "display": "standalone",
+    "theme_color" : "#1b1c1c",
+    "background_color" : "#1b1c1c",
+    "icons": [
+        {
+            "src": "/logopwa.png",
+            "sizes": "512x512",
+            "type" : "image/png"
+        }
+    ]
+}

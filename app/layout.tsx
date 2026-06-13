@@ -3,6 +3,7 @@ import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import Providers from "./providers"; // ← tambah ini
+import PWARegister from "@/components/PWARegister";
 
 export const metadata: Metadata = {
   title: "Flexicord - Developer Q&A",
@@ -20,6 +21,7 @@ export default function RootLayout({
             <LayoutWrapper>
               {children}
             </LayoutWrapper>
+            <PWARegister />
           </AppProvider>
         </Providers>
       </body>
