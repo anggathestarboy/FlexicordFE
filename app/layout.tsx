@@ -8,6 +8,7 @@ import PWARegister from "@/components/PWARegister";
 export const metadata: Metadata = {
   title: "Flexicord - Developer Q&A",
   description: "A community-driven Q&A platform for developers.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
