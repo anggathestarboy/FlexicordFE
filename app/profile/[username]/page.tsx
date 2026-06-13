@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Award,
   Calendar,
@@ -437,22 +437,100 @@ export default function ProfilePage() {
       });
   }, []);
 
-  useEffect(() => {
+  const fetchProfile = useCallback(async (showLoading = true) => {
     if (!username) return;
-    setLoading(true);
-    fetch(`/api/profile/${username}`, { cache: "no-store" })
-      .then((res) => {
-        if (!res.ok) throw new Error("Pengguna tidak ditemukan.");
-        return res.json() as Promise<ApiResponse>;
-      })
-      .then((d) => {
-        setData(d);
-        setIsFollowing(d.is_following);
-        setFollowersCount(d.user.followers_count);
-      })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
+    if (showLoading) setLoading(true);
+    try {
+      const res = await fetch(`/api/profile/${username}`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Pengguna tidak ditemukan.");
+      const d: ApiResponse = await res.json();
+      setData(d);
+      setIsFollowing(d.is_following);
+      setFollowersCount(d.user.followers_count);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      if (showLoading) setLoading(false);
+    }
   }, [username]);
+
+  useEffect(() => {
+    fetchProfile(true);
+  }, [fetchProfile]);
+
+  // Promote / Demote Action Handlers
+  const [isAdminPromoting, setIsAdminPromoting] = useState(false);
+  const [isModPromoting, setIsModPromoting] = useState(false);
+  const [isDemoting, setIsDemoting] = useState(false);
+  const [roleActionError, setRoleActionError] = useState<string | null>(null);
+  const [roleActionSuccess, setRoleActionSuccess] = useState<string | null>(null);
+
+  // Auto-dismiss role action notifications
+  useEffect(() => {
+    if (!roleActionError && !roleActionSuccess) return;
+    const t = setTimeout(() => {
+      setRoleActionError(null);
+      setRoleActionSuccess(null);
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [roleActionError, roleActionSuccess]);
+
+  const handlePromoteAdmin = async () => {
+    setIsAdminPromoting(true);
+    setRoleActionError(null);
+    setRoleActionSuccess(null);
+    try {
+      const res = await fetch(`/api/admin/promote-admin/${username}`, {
+        method: "POST",
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.message || "Gagal mempromosikan user menjadi admin.");
+      setRoleActionSuccess(resData.message || "User berhasil dipromosikan menjadi admin.");
+      await fetchProfile(false);
+    } catch (err: any) {
+      setRoleActionError(err.message);
+    } finally {
+      setIsAdminPromoting(false);
+    }
+  };
+
+  const handlePromoteModerator = async () => {
+    setIsModPromoting(true);
+    setRoleActionError(null);
+    setRoleActionSuccess(null);
+    try {
+      const res = await fetch(`/api/admin/promote-moderator/${username}`, {
+        method: "POST",
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.message || "Gagal mempromosikan user menjadi moderator.");
+      setRoleActionSuccess(resData.message || "User berhasil dipromosikan menjadi moderator.");
+      await fetchProfile(false);
+    } catch (err: any) {
+      setRoleActionError(err.message);
+    } finally {
+      setIsModPromoting(false);
+    }
+  };
+
+  const handleDemote = async () => {
+    setIsDemoting(true);
+    setRoleActionError(null);
+    setRoleActionSuccess(null);
+    try {
+      const res = await fetch(`/api/admin/turunkan/${username}`, {
+        method: "POST",
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.message || "Gagal menurunkan jabatan user.");
+      setRoleActionSuccess(resData.message || "Jabatan user berhasil diturunkan.");
+      await fetchProfile(false);
+    } catch (err: any) {
+      setRoleActionError(err.message);
+    } finally {
+      setIsDemoting(false);
+    }
+  };
 
   // Auto-dismiss follow error
   useEffect(() => {
@@ -703,6 +781,70 @@ export default function ProfilePage() {
               {followError && (
                 <div className="absolute top-full right-0 mt-1 max-w-[200px] bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg px-3 py-1.5 text-[10px] text-red-600 dark:text-red-400 font-medium shadow-sm z-10">
                   {followError}
+                </div>
+              )}
+
+              {/* Role Management (Only for Admin) */}
+              {currentUserRole === "admin" && !isOwnProfile && (
+                <div className="flex flex-wrap items-center gap-1.5 justify-end mt-1">
+                  {/* Promote Admin: shown for regular users and moderators */}
+                  {role !== "admin" && (
+                    <button
+                      onClick={handlePromoteAdmin}
+                      disabled={isAdminPromoting || isModPromoting || isDemoting}
+                      className="text-[10px] font-semibold px-3 py-1 rounded border border-emerald-200 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      {isAdminPromoting ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Shield className="h-3 w-3" />
+                      )}
+                      Promote Admin
+                    </button>
+                  )}
+
+                  {/* Promote Moderator: only shown for regular users */}
+                  {role !== "admin" && role !== "moderator" && role !== "mod" && (
+                    <button
+                      onClick={handlePromoteModerator}
+                      disabled={isAdminPromoting || isModPromoting || isDemoting}
+                      className="text-[10px] font-semibold px-3 py-1 rounded border border-violet-200 dark:border-violet-900/50 text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      {isModPromoting ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Shield className="h-3 w-3" />
+                      )}
+                      Promote Moderator
+                    </button>
+                  )}
+
+                  {/* Turunkan Jabatan: shown for moderators and admins */}
+                  {(role === "admin" || role === "moderator" || role === "mod") && (
+                    <button
+                      onClick={handleDemote}
+                      disabled={isAdminPromoting || isModPromoting || isDemoting}
+                      className="text-[10px] font-semibold px-3 py-1 rounded border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      {isDemoting ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <ShieldAlert className="h-3 w-3" />
+                      )}
+                      Turunkan Jabatan
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {roleActionError && (
+                <div className="text-[10px] font-bold text-red-500 mt-1 text-right">
+                  {roleActionError}
+                </div>
+              )}
+              {roleActionSuccess && (
+                <div className="text-[10px] font-bold text-emerald-500 mt-1 text-right">
+                  {roleActionSuccess}
                 </div>
               )}
 
