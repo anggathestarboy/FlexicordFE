@@ -178,10 +178,11 @@ export default function EditProfilePage() {
           showNotification(data.message || "Profil berhasil diperbarui! 🎉");
         }
 
-        // Wait a bit to show success message, then redirect back to profile
+        // Refresh Next.js router cache then redirect back to profile
+        router.refresh();
         setTimeout(() => {
           router.push("/profile");
-        }, 1500);
+        }, 800);
       } else {
         if (response.status === 422 && data.errors) {
           // Validation error from backend

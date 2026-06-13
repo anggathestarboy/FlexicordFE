@@ -268,6 +268,7 @@ interface SelfWarningResponse {
 
 type TabKey = "posts" | "activity" | "likes" | "bookmarks" | "credentials" | "points" | "reports" | "warnings";
 
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STORAGE_BASE = "https://pegaduanmasyarakat.alwaysdata.net/storage/";
@@ -1098,24 +1099,28 @@ export default function MyProfilePage() {
   const { currentUser } = useApp();
 
   const [data, setData] = useState<UserDetailResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  // initialLoading: shows full-page spinner on first load only
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("posts");
 
   // Redirect jika belum login
   useEffect(() => {
-    if (currentUser === null && !loading) {
+    if (currentUser === null && !initialLoading) {
       router.push("/login");
     }
-  }, [currentUser, loading, router]);
+  }, [currentUser, initialLoading, router]);
 
   // Fetch /api/me lalu /api/profile/{username}
+  // Depends on currentUser fields so it silently re-fetches when profile data changes after edit
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        setLoading(true);
+        // Only show full-page spinner on first load; subsequent re-fetches are silent
+        if (!data) setInitialLoading(true);
+
         // Step 1: dapatkan username dari /api/me
-        const meRes = await fetch("/api/me");
+        const meRes = await fetch("/api/me", { cache: "no-store" });
         if (!meRes.ok) {
           router.push("/login");
           return;
@@ -1125,21 +1130,22 @@ export default function MyProfilePage() {
         if (!username) throw new Error("Username tidak ditemukan.");
 
         // Step 2: fetch detail lengkap dari /api/profile/{username}
-        const profileRes = await fetch(`/api/profile/${encodeURIComponent(username)}`);
+        const profileRes = await fetch(`/api/profile/${encodeURIComponent(username)}`, { cache: "no-store" });
         if (!profileRes.ok) throw new Error("Gagal memuat profil detail.");
         const profileData: UserDetailResponse = await profileRes.json();
         setData(profileData);
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "Terjadi kesalahan.");
       } finally {
-        setLoading(false);
+        setInitialLoading(false);
       }
     };
 
     fetchProfile();
-  }, [router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, currentUser?.avatar_url, currentUser?.username, currentUser?.bio, currentUser?.email]);
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
         <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-brand-blue" />
@@ -1302,24 +1308,30 @@ export default function MyProfilePage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
             {/* Social stats */}
             <div className="flex flex-row sm:flex-col gap-3 sm:gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-              <div className="flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+              <button
+                onClick={() => router.push(`/profile/${user.username}/followers`)}
+                className="flex items-center gap-1.5 hover:text-brand-blue transition-colors cursor-pointer group"
+              >
+                <Users className="h-3.5 w-3.5 shrink-0 text-zinc-400 group-hover:text-brand-blue transition-colors" />
                 <span>
-                  <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">
+                  <strong className="text-zinc-800 dark:text-zinc-200 font-semibold group-hover:text-brand-blue transition-colors">
                     {user.followers_count}
                   </strong>{" "}
-                  pengikut
+                  <span className="underline-offset-2 group-hover:underline">pengikut</span>
                 </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <UserCheck className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+              </button>
+              <button
+                onClick={() => router.push(`/profile/${user.username}/following`)}
+                className="flex items-center gap-1.5 hover:text-brand-blue transition-colors cursor-pointer group"
+              >
+                <UserCheck className="h-3.5 w-3.5 shrink-0 text-zinc-400 group-hover:text-brand-blue transition-colors" />
                 <span>
-                  <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">
+                  <strong className="text-zinc-800 dark:text-zinc-200 font-semibold group-hover:text-brand-blue transition-colors">
                     {user.following_count}
                   </strong>{" "}
-                  mengikuti
+                  <span className="underline-offset-2 group-hover:underline">mengikuti</span>
                 </span>
-              </div>
+              </button>
               <div className="flex items-center gap-1.5">
                 <Award className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
                 <span>
@@ -1377,8 +1389,8 @@ export default function MyProfilePage() {
             sub: `Level ${user.level}`,
             onClick: () => setActiveTab("points"),
           },
-          { label: "Total Post", value: user.posts_count, sub: "pertanyaan" },
-          { label: "Lencana", value: user.badges_count, sub: "badge" },
+          { label: "Total Post", value: user.posts_count, sub: "pertanyaan", onClick: undefined as (() => void) | undefined },
+          { label: "Lencana", value: user.badges_count, sub: "badge", onClick: undefined },
         ].map(({ label, value, sub, onClick }) => (
           <div
             key={label}
@@ -1573,6 +1585,7 @@ export default function MyProfilePage() {
           )}
         </div>
       </div>
+    
     </div>
   );
 }

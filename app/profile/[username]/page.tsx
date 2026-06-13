@@ -7,6 +7,8 @@ import {
   FileText,
   Users,
   UserCheck,
+  UserPlus,
+  UserMinus,
   Shield,
   CheckCircle2,
   CircleDot,
@@ -18,6 +20,7 @@ import {
   ShieldAlert,
   Flag,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 
@@ -383,11 +386,18 @@ export default function ProfilePage() {
 
   // Auth & Ban states
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
   const [showBanForm, setShowBanForm] = useState(false);
   const [banReason, setBanReason] = useState("");
   const [banNotes, setBanNotes] = useState("");
   const [isBanning, setIsBanning] = useState(false);
   const [banError, setBanError] = useState<string | null>(null);
+
+  // Follow states
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [followError, setFollowError] = useState<string | null>(null);
 
   // Report states
   const [showReportForm, setShowReportForm] = useState(false);
@@ -407,7 +417,7 @@ export default function ProfilePage() {
 
   // Fetch current user
   useEffect(() => {
-    fetch("/api/me")
+    fetch("/api/me", { cache: "no-store" })
       .then((res) => {
         if (!res.ok) throw new Error("Not logged in");
         return res.json();
@@ -416,24 +426,73 @@ export default function ProfilePage() {
         if (data.user?.primary_role?.name) {
           setCurrentUserRole(data.user.primary_role.name);
         }
+        if (data.user?.username) {
+          setCurrentUsername(data.user.username);
+        }
       })
       .catch(() => {
         setCurrentUserRole(null);
+        setCurrentUsername(null);
       });
   }, []);
 
   useEffect(() => {
     if (!username) return;
     setLoading(true);
-    fetch(`/api/profile/${username}`)
+    fetch(`/api/profile/${username}`, { cache: "no-store" })
       .then((res) => {
         if (!res.ok) throw new Error("Pengguna tidak ditemukan.");
         return res.json() as Promise<ApiResponse>;
       })
-      .then(setData)
+      .then((d) => {
+        setData(d);
+        setIsFollowing(d.is_following);
+        setFollowersCount(d.user.followers_count);
+      })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [username]);
+
+  // Auto-dismiss follow error
+  useEffect(() => {
+    if (!followError) return;
+    const t = setTimeout(() => setFollowError(null), 3500);
+    return () => clearTimeout(t);
+  }, [followError]);
+
+  const handleFollow = async () => {
+    if (!username || isFollowLoading) return;
+
+    // Optimistic update
+    const wasFollowing = isFollowing;
+    setIsFollowing(!wasFollowing);
+    setFollowersCount((c) => (wasFollowing ? c - 1 : c + 1));
+    setIsFollowLoading(true);
+    setFollowError(null);
+
+    try {
+      const res = await fetch("/api/follows", {
+        method: wasFollowing ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username }),
+      });
+
+      if (!res.ok) {
+        // Roll back optimistic update
+        setIsFollowing(wasFollowing);
+        setFollowersCount((c) => (wasFollowing ? c + 1 : c - 1));
+        const errData = await res.json().catch(() => ({}));
+        setFollowError(errData.message || (wasFollowing ? "Gagal unfollow." : "Gagal follow."));
+      }
+    } catch {
+      // Roll back on network error
+      setIsFollowing(wasFollowing);
+      setFollowersCount((c) => (wasFollowing ? c + 1 : c - 1));
+      setFollowError("Terjadi kesalahan jaringan.");
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
 
   const handleBan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -574,11 +633,13 @@ export default function ProfilePage() {
     );
   }
 
-  const { user, is_following } = data;
+  const { user } = data;
   const role = primaryRole(user.roles);
   const src = avatarSrc(user.avatar_url);
   const answeredPosts = user.posts.filter((p) => p.is_answered);
   const openPosts = user.posts.filter((p) => p.status === "open" && !p.is_answered);
+  // True if the logged-in user is viewing their own profile
+  const isOwnProfile = !!currentUsername && currentUsername === username;
 
   const tabs: { key: TabKey; label: string; icon: React.ReactNode; count?: number }[] = [
     { key: "posts", label: "Pertanyaan", icon: <FileText className="h-3.5 w-3.5" />, count: user.posts_count },
@@ -614,15 +675,35 @@ export default function ProfilePage() {
 
             {/* Actions: Follow, Report & Ban */}
             <div className="pt-16 flex flex-col items-end gap-2 relative">
-              <button
-                className={`text-xs font-semibold px-4 py-2 rounded-lg border transition-all ${
-                  is_following
-                    ? "bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border-zinc-200 dark:border-zinc-800"
-                    : "bg-brand-blue hover:bg-brand-blue/90 text-white border-transparent"
-                }`}
-              >
-                {is_following ? "Mengikuti" : "+ Ikuti"}
-              </button>
+              {/* Follow / Unfollow button — hidden on own profile */}
+              {!isOwnProfile && (
+                <button
+                  id="btn-follow-toggle"
+                  onClick={handleFollow}
+                  disabled={isFollowLoading}
+                  className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg border transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
+                    isFollowing
+                      ? "bg-zinc-100 hover:bg-red-50 dark:bg-zinc-900 dark:hover:bg-red-950/30 text-zinc-700 dark:text-zinc-300 hover:text-red-600 dark:hover:text-red-400 border-zinc-200 dark:border-zinc-700 hover:border-red-300 dark:hover:border-red-800"
+                      : "bg-brand-blue hover:bg-brand-blue/90 text-white border-transparent shadow-sm"
+                  }`}
+                >
+                  {isFollowLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : isFollowing ? (
+                    <UserMinus className="h-3.5 w-3.5" />
+                  ) : (
+                    <UserPlus className="h-3.5 w-3.5" />
+                  )}
+                  {isFollowing ? "Mengikuti" : "Ikuti"}
+                </button>
+              )}
+
+              {/* Follow error toast */}
+              {followError && (
+                <div className="absolute top-full right-0 mt-1 max-w-[200px] bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg px-3 py-1.5 text-[10px] text-red-600 dark:text-red-400 font-medium shadow-sm z-10">
+                  {followError}
+                </div>
+              )}
 
               <div className="flex items-center gap-2">
                 {/* Tombol Laporkan (Selalu Muncul Jika Bukan Diri Sendiri, tapi untuk sekarang muncul selalu) */}
@@ -877,26 +958,30 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
             {/* Social stats */}
             <div className="flex flex-row sm:flex-col gap-3 sm:gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-              <div className="flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+              <button
+                onClick={() => router.push(`/profile/${username}/followers`)}
+                className="flex items-center gap-1.5 hover:text-brand-blue transition-colors cursor-pointer group"
+              >
+                <Users className="h-3.5 w-3.5 shrink-0 text-zinc-400 group-hover:text-brand-blue transition-colors" />
                 <span>
-                  <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">
-                    {user.followers_count}
+                  <strong className="text-zinc-800 dark:text-zinc-200 font-semibold group-hover:text-brand-blue transition-colors">
+                    {followersCount}
                   </strong>{" "}
-                  pengikut
+                  <span className="underline-offset-2 group-hover:underline">pengikut</span>
                 </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <UserCheck className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">
+              </button>
+              <button
+                onClick={() => router.push(`/profile/${username}/following`)}
+                className="flex items-center gap-1.5 hover:text-brand-blue transition-colors cursor-pointer group"
+              >
+                <UserCheck className="h-3.5 w-3.5 shrink-0 text-zinc-400 group-hover:text-brand-blue transition-colors" />
+                <span>
+                  <strong className="text-zinc-800 dark:text-zinc-200 font-semibold group-hover:text-brand-blue transition-colors">
                     {user.following_count}
                   </strong>{" "}
-                <span>
-                  mengikuti{" "}
-                  
-                  
+                  <span className="underline-offset-2 group-hover:underline">mengikuti</span>
                 </span>
-              </div>
+              </button>
               <div className="flex items-center gap-1.5">
                 <Award className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
                 <span>
@@ -944,15 +1029,19 @@ export default function ProfilePage() {
       </div>
 
       {/* ── Quick stats strip ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Reputasi", value: user.reputation_points, sub: `Level ${user.level}` },
-          { label: "Total Post", value: user.posts_count, sub: "pertanyaan" },
-          { label: "Lencana", value: user.badges_count, sub: "badge" },
-        ].map(({ label, value, sub }) => (
+          { label: "Reputasi", value: user.reputation_points, sub: `Level ${user.level}`, onClick: undefined as (() => void) | undefined },
+          { label: "Total Post", value: user.posts_count, sub: "pertanyaan", onClick: undefined },
+          { label: "Pengikut", value: followersCount, sub: "followers", onClick: () => router.push(`/profile/${username}/followers`) },
+          { label: "Mengikuti", value: user.following_count, sub: "following", onClick: () => router.push(`/profile/${username}/following`) },
+        ].map(({ label, value, sub, onClick }) => (
           <div
             key={label}
-            className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 text-center"
+            onClick={onClick}
+            className={`p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 text-center ${
+              onClick ? "cursor-pointer hover:border-brand-blue transition-all" : ""
+            }`}
           >
             <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{label}</div>
             <div className="text-xl font-black text-brand-blue font-mono mt-0.5">{value.toLocaleString()}</div>

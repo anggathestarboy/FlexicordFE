@@ -40,7 +40,7 @@ export async function GET(
             ? { Authorization: request.headers.get("Authorization")! }
             : {}),
         },
-        next: { revalidate: 60 },
+        cache: "no-store",
       }
     );
 
