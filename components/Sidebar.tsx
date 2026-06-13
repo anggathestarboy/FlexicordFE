@@ -150,16 +150,27 @@ export default function Sidebar({
             </Link>
 
             <Link
-              href="/"
-              onClick={() => setSelectedTag('react')}
+              href="/category"
               className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer ${
-                pathname === '/' && selectedTag === 'react'
+                pathname.startsWith('/category')
                   ? 'bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue font-semibold'
                   : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white'
               }`}
             >
               <Tag className="h-4 w-4" />
               <span>Kategori</span>
+            </Link>
+
+            <Link
+              href="/tag"
+              className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer ${
+                pathname.startsWith('/tag')
+                  ? 'bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue font-semibold'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white'
+              }`}
+            >
+              <Tags className="h-4 w-4" />
+              <span>Tags</span>
             </Link>
 
             {isLoggedIn && (

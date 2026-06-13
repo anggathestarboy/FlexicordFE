@@ -140,3 +140,28 @@ export interface PaginationLink {
 
 
 export type ViewType = 'home' | 'question-detail' | 'ask-question' | 'profile' | 'login' | 'register';
+
+export interface CreatePostRequest {
+  title: string;
+  body: string;
+  category_slug: string;
+  tags?: string[];
+}
+
+export interface CreatePostResponse {
+  message: string;
+  data: {
+    id: string;
+    user_id: string;
+    category_id: string;
+    title: string;
+    body: string;
+    status: string;
+    view_count: number;
+    vote_score: number;
+    is_answered: number;
+    accepted_answer_id: string | null;
+    created_at: string;
+    updated_at: string;
+  };
+}

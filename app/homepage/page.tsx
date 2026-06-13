@@ -351,7 +351,7 @@ function HomePageContent() {
 
               {/* BODY */}
               <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
-                {post.body}
+                {post.body.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
               </p>
 
               {/* TAGS */}
@@ -360,7 +360,11 @@ function HomePageContent() {
                   {post.tags.map((tag) => (
                     <span
                       key={tag.id}
-                      className="text-[11px] px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-mono"
+                      className="text-[11px] px-2 py-0.5 rounded border font-mono font-semibold bg-white dark:bg-zinc-950"
+                      style={{
+                        borderColor: (tag as any).color || '#3b82f6',
+                        color: (tag as any).color || '#3b82f6',
+                      }}
                     >
                       #{tag.name}
                     </span>

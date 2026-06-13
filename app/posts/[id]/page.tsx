@@ -1,4 +1,5 @@
 "use client";
+import 'quill/dist/quill.snow.css';
 
 import React, { useState, use, useEffect, useRef } from "react";
 import {
@@ -46,45 +47,23 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function formatTextBody(text: string) {
-  const parts = text.split(/(```[\s\S]*?```)/g);
-  return parts.map((part, index) => {
-    if (part.startsWith("```") && part.endsWith("```")) {
-      const lines = part.slice(3, -3).trim().split("\n");
-      let language = "javascript";
-      let codeLines = lines;
-      if (lines[0] && lines[0].match(/^[a-zA-Z0-9+#]+$/)) {
-        language = lines[0];
-        codeLines = lines.slice(1);
-      }
-      return (
-        <div
-          key={index}
-          className="my-4 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-inner"
-        >
-          <div className="bg-zinc-100 dark:bg-zinc-900 px-4 py-1.5 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
-            <span className="text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
-              {language}
-            </span>
-            <span className="text-[10px] font-sans text-zinc-400">
-              Read-only code editor
-            </span>
-          </div>
-          <pre className="bg-zinc-900 text-zinc-100 p-4 overflow-x-auto font-mono text-xs sm:text-sm selection:bg-brand-blue/30">
-            <code>{codeLines.join("\n")}</code>
-          </pre>
-        </div>
-      );
-    }
+function renderQuillBody(html: string) {
+  // Strip HTML tags to get plain text for checking if it's plain text content
+  const isHtml = /<[a-z][\s\S]*>/i.test(html);
+  if (!isHtml) {
+    // Legacy plain text fallback
     return (
-      <p
-        key={index}
-        className="whitespace-pre-wrap leading-relaxed text-zinc-700 dark:text-zinc-300 text-sm sm:text-base mb-3 font-sans"
-      >
-        {part}
+      <p className="whitespace-pre-wrap leading-relaxed text-zinc-700 dark:text-zinc-300 text-sm sm:text-base font-sans">
+        {html}
       </p>
     );
-  });
+  }
+  return (
+    <div
+      className="ql-editor ql-content prose prose-zinc dark:prose-invert max-w-none text-zinc-800 dark:text-zinc-200 text-sm sm:text-base"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
 
 const fetchCache: Record<string, Promise<any>> = {};
@@ -120,18 +99,39 @@ export default function QuestionDetailPage({
   // States for deleting comments
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
 
+  // States for deleting post
+  const [deletingPost, setDeletingPost] = useState(false);
+
+  // States for accepting answers
+  const [acceptingAnswerId, setAcceptingAnswerId] = useState<string | null>(null);
+
   const isAdminOrModerator = currentUser?.primary_role?.name === 'admin' || currentUser?.primary_role?.name === 'moderator';
+  const isPostOwner = currentUser && post && currentUser.id === post.user_id;
   const isPostOwnerOrAdmin = currentUser && post && (currentUser.id === post.user_id || currentUser.primary_role?.name === 'admin');
+  const canDeletePost = currentUser && post && (currentUser.id === post.user_id || isAdminOrModerator);
+  const hasAcceptedAnswer = post?.comments.some(
+    (c: Comment) => c.is_accepted === 1 || (c.replies && c.replies.some((r) => r.is_accepted === 1))
+  ) || false;
 
   // States for editing post
   const [isEditingPost, setIsEditingPost] = useState(false);
   const [editPostTitle, setEditPostTitle] = useState("");
   const [editPostBody, setEditPostBody] = useState("");
   const [editPostCategorySlug, setEditPostCategorySlug] = useState("");
-  const [editPostTagsString, setEditPostTagsString] = useState("");
   const [editPostReason, setEditPostReason] = useState("");
   const [categories, setCategories] = useState<any[]>([]);
   const [submittingEditPost, setSubmittingEditPost] = useState(false);
+
+  // Tag selector states for edit form (mirrors ask/page.tsx)
+  const [editAllTags, setEditAllTags] = useState<any[]>([]);
+  const [editSelectedTags, setEditSelectedTags] = useState<any[]>([]);
+  const [editTagInputValue, setEditTagInputValue] = useState('');
+  const [editShowTagSuggestions, setEditShowTagSuggestions] = useState(false);
+  const [editCreatingTag, setEditCreatingTag] = useState(false);
+
+  // Quill refs for edit post form
+  const editQuillRef = useRef<any>(null);
+  const editContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchCategories = async () => {
     try {
@@ -148,16 +148,77 @@ export default function QuestionDetailPage({
     }
   };
 
+  const fetchEditTags = async () => {
+    try {
+      const res = await fetch('/api/tags');
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data ?? json;
+        if (Array.isArray(data)) setEditAllTags(data);
+      }
+    } catch (err) {
+      console.error('Gagal memuat tags:', err);
+    }
+  };
+
+  const editFilteredSuggestions = editAllTags.filter((tag) => {
+    const isAlreadySelected = editSelectedTags.some((s) => s.id === tag.id);
+    const matchesInput = tag.name.toLowerCase().includes(editTagInputValue.toLowerCase());
+    return !isAlreadySelected && matchesInput;
+  });
+
+  const editIsInputExactMatch = editAllTags.some(
+    (tag) => tag.name.toLowerCase() === editTagInputValue.trim().toLowerCase()
+  );
+
+  const handleEditAddExistingTag = (tag: any) => {
+    if (editSelectedTags.length >= 5) return;
+    setEditSelectedTags([...editSelectedTags, tag]);
+    setEditTagInputValue('');
+    setEditShowTagSuggestions(false);
+  };
+
+  const handleEditAddNewTag = async (tagName: string) => {
+    const trimmed = tagName.trim();
+    if (!trimmed || editSelectedTags.length >= 5) return;
+    setEditCreatingTag(true);
+    try {
+      const res = await fetch('/api/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: trimmed,
+          slug: trimmed.toLowerCase().replace(/[^a-zA-Z0-9]/g, '-'),
+        }),
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.message || 'Gagal membuat tag baru');
+      const newTag = resData.data ?? resData;
+      setEditSelectedTags([...editSelectedTags, newTag]);
+      setEditAllTags([...editAllTags, newTag]);
+      setEditTagInputValue('');
+      setEditShowTagSuggestions(false);
+      showNotification('Tag baru berhasil dibuat!');
+    } catch (err: any) {
+      showNotification(err.message || 'Gagal membuat tag.', 'info');
+    } finally {
+      setEditCreatingTag(false);
+    }
+  };
+
+  const handleEditRemoveTag = (tagId: string) => {
+    setEditSelectedTags(editSelectedTags.filter((t) => t.id !== tagId));
+  };
+
   const handleEditPost = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!post || !editPostTitle.trim() || !editPostBody.trim() || !editPostCategorySlug || submittingEditPost) return;
+    const bodyHtml = editQuillRef.current ? editQuillRef.current.root.innerHTML : editPostBody;
+    const bodyText = editQuillRef.current ? editQuillRef.current.getText().trim() : editPostBody.trim();
+    if (!post || !editPostTitle.trim() || !bodyText || !editPostCategorySlug || submittingEditPost) return;
 
     setSubmittingEditPost(true);
     try {
-      const tagsArray = editPostTagsString
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
+      const tagsArray = editSelectedTags.map((t) => t.name);
 
       const res = await fetch(`/api/posts/${post.id}`, {
         method: "PUT",
@@ -166,7 +227,7 @@ export default function QuestionDetailPage({
         },
         body: JSON.stringify({
           title: editPostTitle.trim(),
-          body: editPostBody.trim(),
+          body: bodyHtml,
           category_slug: editPostCategorySlug,
           tags: tagsArray,
           reason: editPostReason.trim() || undefined,
@@ -181,6 +242,10 @@ export default function QuestionDetailPage({
 
       showNotification("Postingan berhasil diperbarui!");
       setIsEditingPost(false);
+      if (editQuillRef.current) {
+        editQuillRef.current.off('text-change');
+        editQuillRef.current = null;
+      }
       await fetchPostDetails(false);
     } catch (err: any) {
       console.error("Edit post error:", err);
@@ -215,6 +280,64 @@ export default function QuestionDetailPage({
       showNotification(err.message || "Terjadi kesalahan saat menutup postingan.", "info");
     } finally {
       setClosingPost(false);
+    }
+  };
+
+  const handleDeletePost = async () => {
+    if (!post || deletingPost) return;
+    if (!confirm("Apakah Anda yakin ingin menghapus postingan ini secara permanen?")) return;
+
+    setDeletingPost(true);
+    try {
+      const res = await fetch(`/api/posts/${post.id}`, {
+        method: "DELETE",
+      });
+
+      const resData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(resData.message || "Gagal menghapus postingan");
+      }
+
+      showNotification("Postingan berhasil dihapus!");
+      router.push("/homepage");
+    } catch (err: any) {
+      console.error("Delete post error:", err);
+      showNotification(err.message || "Terjadi kesalahan saat menghapus postingan.", "info");
+    } finally {
+      setDeletingPost(false);
+    }
+  };
+
+  const handleAcceptAnswer = async (commentId: string) => {
+    if (!post || acceptingAnswerId) return;
+    if (!confirm("Apakah Anda yakin ingin menandai jawaban ini sebagai solusi terbaik?")) return;
+
+    setAcceptingAnswerId(commentId);
+    try {
+      const res = await fetch(`/api/posts/${post.id}/answer`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          comment_id: commentId,
+        }),
+      });
+
+      const resData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(resData.message || "Gagal menerima jawaban");
+      }
+
+      showNotification("Jawaban berhasil diterima!");
+      await fetchPostDetails(false);
+    } catch (err: any) {
+      console.error("Accept answer error:", err);
+      showNotification(err.message || "Terjadi kesalahan saat menerima jawaban.", "info");
+    } finally {
+      setAcceptingAnswerId(null);
     }
   };
 
@@ -643,6 +766,56 @@ export default function QuestionDetailPage({
     fetchPostDetails(true);
   }, [id]);
 
+  // ─── Quill editor for Edit Post form ─────────────────────────────────────────
+  useEffect(() => {
+    if (!isEditingPost || !editContainerRef.current) return;
+
+    // Avoid double-init
+    if (editQuillRef.current) return;
+
+    import('quill').then(({ default: Quill }) => {
+      if (!editContainerRef.current) return;
+
+      const toolbarOptions = [
+        [{ header: [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        ['blockquote', 'code-block'],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        ['link'],
+        ['clean'],
+      ];
+
+      const quill = new Quill(editContainerRef.current, {
+        theme: 'snow',
+        placeholder: 'Tulis isi postingan di sini...',
+        modules: { toolbar: toolbarOptions },
+      });
+
+      // Seed with existing body HTML
+      quill.root.innerHTML = editPostBody;
+
+      editQuillRef.current = quill;
+    });
+
+    return () => {
+      if (editQuillRef.current) {
+        editQuillRef.current = null;
+      }
+    };
+  }, [isEditingPost]);
+
+  // Close edit-tag suggestions on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('#edit-tags-input') && !target.closest('.edit-tag-suggestions')) {
+        setEditShowTagSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // ─── Add comment handler ──────────────────────────────────────────────────────
   const handleAddQuestionComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -841,11 +1014,15 @@ export default function QuestionDetailPage({
                   setEditPostTitle(post.title);
                   setEditPostBody(post.body);
                   setEditPostCategorySlug(post.category?.slug || "");
-                  setEditPostTagsString(post.tags ? post.tags.map((t: any) => t.name ?? t).join(", ") : "");
+                  // Pre-populate selected tags from post.tags (objects with id+name+color)
+                  const existingTags: any[] = (post.tags ?? []).map((t: any) =>
+                    typeof t === 'object' ? t : { id: t, name: t, color: '#3b82f6' }
+                  );
+                  setEditSelectedTags(existingTags);
+                  setEditTagInputValue('');
                   setEditPostReason("");
-                  if (categories.length === 0) {
-                    fetchCategories();
-                  }
+                  if (categories.length === 0) fetchCategories();
+                  fetchEditTags();
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-855 border border-zinc-200 dark:border-zinc-800 hover:text-brand-blue text-xs font-semibold rounded-lg text-zinc-600 dark:text-zinc-350 transition-colors cursor-pointer shrink-0"
                 title="Edit Postingan"
@@ -868,6 +1045,22 @@ export default function QuestionDetailPage({
                   <AlertCircle className="h-3.5 w-3.5" />
                 )}
                 <span>Tutup</span>
+              </button>
+            )}
+
+            {canDeletePost && !isEditingPost && (
+              <button
+                onClick={handleDeletePost}
+                disabled={deletingPost}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/30 border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                title="Hapus Postingan"
+              >
+                {deletingPost ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                <span>Hapus</span>
               </button>
             )}
           </div>
@@ -1012,31 +1205,93 @@ export default function QuestionDetailPage({
                   </select>
                 </div>
 
-                {/* Tags */}
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tags (pisahkan dengan koma)</label>
-                  <input
-                    type="text"
-                    placeholder="react, nextjs, typescript"
-                    value={editPostTagsString}
-                    onChange={(e) => setEditPostTagsString(e.target.value)}
-                    disabled={submittingEditPost}
-                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all"
-                  />
+                {/* Tags — dynamic selector */}
+                <div className="space-y-2 relative">
+                  <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tags</label>
+
+                  {/* Selected tag chips */}
+                  {editSelectedTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pb-1">
+                      {editSelectedTags.map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded font-mono font-bold border"
+                          style={{
+                            backgroundColor: `${tag.color || '#3b82f6'}15`,
+                            color: tag.color || '#3b82f6',
+                            borderColor: `${tag.color || '#3b82f6'}30`,
+                          }}
+                        >
+                          #{tag.name}
+                          <button
+                            type="button"
+                            onClick={() => handleEditRemoveTag(tag.id)}
+                            className="hover:bg-black/10 dark:hover:bg-white/10 rounded-full p-0.5 transition-colors cursor-pointer"
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Tag search input */}
+                  <div className="relative">
+                    <input
+                      id="edit-tags-input"
+                      type="text"
+                      placeholder={editSelectedTags.length >= 5 ? 'Maks. 5 tag' : 'Cari tag atau buat tag baru...'}
+                      value={editTagInputValue}
+                      onChange={(e) => { setEditTagInputValue(e.target.value); setEditShowTagSuggestions(true); }}
+                      onFocus={() => setEditShowTagSuggestions(true)}
+                      disabled={submittingEditPost || editCreatingTag || editSelectedTags.length >= 5}
+                      className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all disabled:opacity-50"
+                    />
+
+                    {/* Suggestions dropdown */}
+                    {editShowTagSuggestions && (editTagInputValue.trim() !== '' || editFilteredSuggestions.length > 0) && (
+                      <div className="edit-tag-suggestions absolute z-50 w-full mt-1.5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg max-h-52 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-900">
+                        {editFilteredSuggestions.map((tag) => (
+                          <button
+                            key={tag.id}
+                            type="button"
+                            onClick={() => handleEditAddExistingTag(tag)}
+                            className="w-full text-left px-4 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-900/50 flex justify-between items-center cursor-pointer transition-colors"
+                          >
+                            <span className="font-mono font-bold" style={{ color: tag.color || '#3b82f6' }}>#{tag.name}</span>
+                            <span className="text-[10px] text-zinc-400 font-mono">Digunakan {tag.usage_count || 0}×</span>
+                          </button>
+                        ))}
+
+                        {editTagInputValue.trim() !== '' && !editIsInputExactMatch && (
+                          <button
+                            type="button"
+                            onClick={() => handleEditAddNewTag(editTagInputValue)}
+                            disabled={editCreatingTag}
+                            className="w-full text-left px-4 py-2.5 text-xs text-brand-blue hover:bg-brand-blue/5 flex items-center justify-between cursor-pointer transition-colors font-semibold"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              {editCreatingTag ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span className="text-sm">+</span>}
+                              <span>Buat tag baru: &ldquo;{editTagInputValue.trim()}&rdquo;</span>
+                            </span>
+                            <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-mono">Baru</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-zinc-400">Maks. 5 tag · Pilih dari daftar atau buat tag baru</p>
                 </div>
               </div>
 
               {/* Body */}
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Isi Postingan</label>
-                <textarea
-                  rows={8}
-                  value={editPostBody}
-                  onChange={(e) => setEditPostBody(e.target.value)}
-                  disabled={submittingEditPost}
-                  className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-1.5 focus:ring-brand-blue/40 transition-all font-mono"
-                  required
-                />
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden quill-edit-wrapper">
+                  <div ref={editContainerRef} />
+                </div>
               </div>
 
               {/* Reason */}
@@ -1074,9 +1329,9 @@ export default function QuestionDetailPage({
             </form>
           ) : (
             <>
-              <article className="prose prose-zinc dark:prose-invert max-w-none text-zinc-800 dark:text-zinc-200">
-                {formatTextBody(post.body)}
-              </article>
+              <div className="ql-snow">
+                {renderQuillBody(post.body)}
+              </div>
 
           {/* TAGS */}
           {post.tags.length > 0 && (
@@ -1084,7 +1339,11 @@ export default function QuestionDetailPage({
               {post.tags.map((tag: any) => (
                 <span
                   key={tag.id ?? tag}
-                  className="text-[11px] px-2.5 py-1 bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 border border-zinc-200/50 dark:border-zinc-800/80 rounded font-mono"
+                  className="text-[11px] px-2.5 py-1 rounded font-mono font-semibold border bg-white dark:bg-zinc-950"
+                  style={{
+                    borderColor: tag.color || '#3b82f6',
+                    color: tag.color || '#3b82f6',
+                  }}
                 >
                   #{tag.name ?? tag}
                 </span>
@@ -1106,11 +1365,17 @@ export default function QuestionDetailPage({
                 Ditanyakan {formatDate(post.created_at)}
               </span>
               <div className="flex items-center gap-2">
-                <img
-                  src={resolveAvatar(post.user.avatar_url)}
-                  alt={post.user.username}
-                  className="h-8 w-8 rounded-full object-cover"
-                />
+                {post.user.avatar_url ? (
+                  <img
+                    src={resolveAvatar(post.user.avatar_url)}
+                    alt={post.user.username}
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-sm shadow-inner uppercase shrink-0">
+                    {post.user.username ? post.user.username.charAt(0) : '?'}
+                  </div>
+                )}
                 <div className="text-left">
                   <span className="block text-xs font-bold text-zinc-700 dark:text-zinc-200">
                     {post.user.username}
@@ -1186,12 +1451,20 @@ export default function QuestionDetailPage({
                           <CheckCircle2 className="h-6 w-6 fill-emerald-500/10" />
                         </div>
                       ) : (
-                        <button
-                          className="mt-2 text-zinc-300 hover:text-emerald-500 transition-colors cursor-pointer"
-                          title="Tandai sebagai solusi"
-                        >
-                          <Check className="h-5 w-5 hover:scale-110 active:scale-95 transition-transform" />
-                        </button>
+                        isPostOwner && !hasAcceptedAnswer && reply.user_id !== post.user_id && (
+                          <button
+                            onClick={() => handleAcceptAnswer(reply.id)}
+                            disabled={acceptingAnswerId === reply.id}
+                            className="mt-2 text-zinc-300 hover:text-emerald-500 transition-colors cursor-pointer"
+                            title="Tandai sebagai solusi"
+                          >
+                            {acceptingAnswerId === reply.id ? (
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                              <Check className="h-5 w-5 hover:scale-110 active:scale-95 transition-transform" />
+                            )}
+                          </button>
+                        )
                       )}
                     </div>
 
@@ -1218,9 +1491,9 @@ export default function QuestionDetailPage({
                           </div>
                         </form>
                       ) : (
-                        <article className="prose prose-zinc dark:prose-invert max-w-none text-zinc-800 dark:text-zinc-200">
-                          {formatTextBody(reply.body)}
-                        </article>
+                        <div className="ql-snow">
+                          {renderQuillBody(reply.body)}
+                        </div>
                       )}
 
                       <div className="flex justify-between items-center mt-6">
@@ -1280,11 +1553,17 @@ export default function QuestionDetailPage({
                             Dijawab oleh:
                           </span>
                           <div className="flex items-center gap-2">
-                            <img
-                              src={resolveAvatar(reply.user.avatar_url)}
-                              alt={reply.user.username}
-                              className="h-6 w-6 rounded-full object-cover"
-                            />
+                            {reply.user.avatar_url ? (
+                              <img
+                                src={resolveAvatar(reply.user.avatar_url)}
+                                alt={reply.user.username}
+                                className="h-6 w-6 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="h-6 w-6 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-[10px] shadow-inner uppercase shrink-0">
+                                {reply.user.username ? reply.user.username.charAt(0) : '?'}
+                              </div>
+                            )}
                             <div className="text-left">
                               <span className="block text-xs font-bold text-zinc-700 dark:text-zinc-200">
                                 {reply.user.username}
@@ -1405,16 +1684,57 @@ export default function QuestionDetailPage({
 
                   {/* COMMENT CONTENT COLUMN */}
                   <div className="flex-1 min-w-0 pt-0.5 flex flex-col">
-                    {/* User Card (Kiri Atas) */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <img
-                        src={resolveAvatar(comm.user.avatar_url)}
-                        alt={comm.user.username}
-                        className="h-6 w-6 rounded-full object-cover"
-                      />
-                      <span className="font-bold text-zinc-850 dark:text-zinc-200">
-                        {comm.user.username}
-                      </span>
+                    {/* User Card (Kiri Atas & Tombol Solusi Kanan) */}
+                    <div className="flex items-center justify-between mb-2 w-full">
+                      <div className="flex items-center gap-2">
+                        {comm.user.avatar_url ? (
+                          <img
+                            src={resolveAvatar(comm.user.avatar_url)}
+                            alt={comm.user.username}
+                            className="h-6 w-6 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-6 w-6 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-[10px] shadow-inner uppercase shrink-0">
+                            {comm.user.username ? comm.user.username.charAt(0) : '?'}
+                          </div>
+                        )}
+                        <span className="font-bold text-zinc-850 dark:text-zinc-200">
+                          {comm.user.username}
+                        </span>
+                      </div>
+
+                      {/* MARK AS ANSWER BUTTON */}
+                      {isPostOwner && comm.user_id !== post.user_id && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          {comm.is_accepted === 1 ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-sans">
+                              ✓ Solusi Disepakati
+                            </span>
+                          ) : (
+                            !hasAcceptedAnswer && (
+                              <button
+                                type="button"
+                                onClick={() => handleAcceptAnswer(comm.id)}
+                                disabled={acceptingAnswerId === comm.id}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-zinc-400 hover:text-emerald-600 dark:text-zinc-500 dark:hover:text-emerald-400 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                                title="Tandai sebagai solusi/jawaban terbaik"
+                              >
+                                {acceptingAnswerId === comm.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Check className="h-3.5 w-3.5" />
+                                )}
+                                <span>Tandai Solusi</span>
+                              </button>
+                            )
+                          )}
+                        </div>
+                      )}
+                      {!isPostOwner && comm.is_accepted === 1 && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-sans shrink-0">
+                          ✓ Solusi Disepakati
+                        </span>
+                      )}
                     </div>
 
                     {/* Comment Body */}
@@ -1440,8 +1760,8 @@ export default function QuestionDetailPage({
                         </div>
                       </form>
                     ) : (
-                      <div className="text-zinc-800 dark:text-zinc-200 pl-0.5 leading-relaxed">
-                        {comm.body}
+                      <div className="ql-snow pl-0.5">
+                        {renderQuillBody(comm.body)}
                       </div>
                     )}
 

@@ -23,8 +23,9 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const isAuthPage = pathname === '/login' || pathname === '/register';
   const isQuestionDetailPage = pathname.startsWith('/posts/');
   const isHomePage = pathname === '/' || pathname === '/homepage';
+  const isTagPage = pathname.startsWith('/tag');
   
-  const showRightSidebar = isHomePage || isQuestionDetailPage;
+  const showRightSidebar = isHomePage || isQuestionDetailPage || isTagPage;
 
   
   return (
@@ -67,16 +68,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             </main>
 
             {showRightSidebar && (
-              <RightSidebar
-               
-                popularTags={POPULAR_TAGS}
-                selectedTag={selectedTag}
-                onTagClick={(tag) => {
-                  setSelectedTag(tag);
-                  // Navigation handled in RightSidebar or by useApp state
-                }}
-              
-              />
+              <RightSidebar />
             )}
           </div>
         )}

@@ -27,3 +27,41 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ── Quill read-only content rendering ─────────────────────────────────── */
+/* Remove the editor border/padding when used for display (not editing) */
+.ql-snow .ql-editor.ql-content {
+  border: none;
+  padding: 0;
+  min-height: unset;
+}
+/* Keep Quill typography but adapt to dark mode */
+.ql-snow .ql-editor.ql-content,
+.ql-snow .ql-editor.ql-content p,
+.ql-snow .ql-editor.ql-content li {
+  font-family: var(--font-sans);
+  line-height: 1.7;
+}
+/* Dark mode text colour overrides */
+.dark .ql-snow .ql-editor.ql-content {
+  color: #e4e4e7; /* zinc-200 */
+}
+.dark .ql-snow .ql-editor.ql-content h1,
+.dark .ql-snow .ql-editor.ql-content h2,
+.dark .ql-snow .ql-editor.ql-content h3 {
+  color: #f4f4f5; /* zinc-100 */
+}
+.dark .ql-snow .ql-editor.ql-content blockquote {
+  border-left-color: #3f3f46; /* zinc-700 */
+  color: #a1a1aa; /* zinc-400 */
+}
+.dark .ql-snow .ql-editor.ql-content code,
+.dark .ql-snow .ql-editor.ql-content pre {
+  background: #18181b; /* zinc-900 */
+  color: #e4e4e7;
+}
+/* Ensure ql-snow wrapper itself has no border/bg */
+.ql-snow:not(.ql-container--has-editor) {
+  border: none !important;
+  background: transparent !important;
+}

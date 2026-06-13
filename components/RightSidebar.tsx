@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import Image from 'next/image';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { Tag as ApiTag } from '@/app/api/tags/TagType';
 
 // — Types —
 interface LeaderboardUser {
@@ -17,17 +19,22 @@ interface LeaderboardUser {
 }
 
 interface RightSidebarProps {
-  popularTags: { name: string; count: number }[];
-  selectedTag: string | null;
-  onTagClick: (tag: string | null) => void;
+  popularTags?: { name: string; count: number }[];
+  selectedTag?: string | null;
+  onTagClick?: (tag: string | null) => void;
 }
 
-// — Fetch —
+// — Fetch functions —
 const fetchLeaderboard = async (): Promise<LeaderboardUser[]> => {
   const { data } = await axios.get<LeaderboardUser[]>(
     'https://pegaduanmasyarakat.alwaysdata.net/api/leaderboard'
   );
   return data;
+};
+
+const fetchTags = async (): Promise<ApiTag[]> => {
+  const { data } = await axios.get<{ data: ApiTag[] }>('/api/tags');
+  return data.data || [];
 };
 
 // — Rank badge —
@@ -92,15 +99,25 @@ const LeaderboardSkeleton = () => (
   </div>
 );
 
-export default function RightSidebar({
-  popularTags,
-  selectedTag,
-  onTagClick,
-}: RightSidebarProps) {
+const TagsSkeleton = () => (
+  <div className="flex flex-wrap gap-2 animate-pulse">
+    {Array.from({ length: 10 }).map((_, i) => (
+      <div key={i} className="h-7 w-16 bg-zinc-200 dark:bg-zinc-800 rounded-md" />
+    ))}
+  </div>
+);
+
+export default function RightSidebar({}: RightSidebarProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const activeTagSlug = pathname === '/tag' ? searchParams.get('slug') : null;
+
   const {
     data: leaderboard,
-    isLoading,
-    isError,
+    isLoading: isLoadingLeaderboard,
+    isError: isErrorLeaderboard,
   } = useQuery({
     queryKey: ['leaderboard'],
     queryFn: fetchLeaderboard,
@@ -108,6 +125,30 @@ export default function RightSidebar({
     gcTime: 2 * 60 * 1000,     
     refetchOnWindowFocus: false,
   });
+
+  const {
+    data: tags,
+    isLoading: isLoadingTags,
+    isError: isErrorTags,
+  } = useQuery({
+    queryKey: ['tags'],
+    queryFn: fetchTags,
+    staleTime: 5 * 60 * 1000,      
+    gcTime: 10 * 60 * 1000,     
+    refetchOnWindowFocus: false,
+  });
+
+  // Sort tags by usage_count desc and take top 15
+  const sortedTags = tags ? [...tags].sort((a, b) => b.usage_count - a.usage_count) : [];
+  const popularTagsToShow = sortedTags.slice(0, 15);
+
+  const handleTagClick = (tagSlug: string) => {
+    if (activeTagSlug === tagSlug) {
+      router.push('/');
+    } else {
+      router.push(`/tag?slug=${tagSlug}`);
+    }
+  };
 
   return (
     <aside className="w-80 hidden xl:block shrink-0 pl-6 pt-6">
@@ -122,9 +163,9 @@ export default function RightSidebar({
             </h4>
           </div>
 
-          {isLoading && <LeaderboardSkeleton />}
+          {isLoadingLeaderboard && <LeaderboardSkeleton />}
 
-          {isError && (
+          {isErrorLeaderboard && (
             <p className="text-xs text-red-400 px-1">
               Gagal memuat leaderboard.
             </p>
@@ -172,40 +213,52 @@ export default function RightSidebar({
               Popular Tags
             </h4>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {popularTags.map((tag) => {
-              const isActive = selectedTag === tag.name;
-              return (
-                <button
-                  key={tag.name}
-                  onClick={() => onTagClick(isActive ? null : tag.name)}
-                  className={`text-xs px-2.5 py-1.5 rounded-md font-mono transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 ${
-                    isActive
-                      ? 'bg-brand-blue text-white ring-1 ring-brand-blue font-semibold'
-                      : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/50 dark:border-zinc-800/80'
-                  }`}
-                >
-                  <span>#{tag.name}</span>
-                  <span
-                    suppressHydrationWarning
-                    className={`text-[10px] pl-1 font-sans ${
+
+          {isLoadingTags && <TagsSkeleton />}
+
+          {isErrorTags && (
+            <p className="text-xs text-red-400 px-1">
+              Gagal memuat popular tags.
+            </p>
+          )}
+
+          {tags && (
+            <div className="flex flex-wrap gap-2">
+              {popularTagsToShow.map((tag) => {
+                const isActive = activeTagSlug === tag.slug;
+                return (
+                  <button
+                    key={tag.id}
+                    onClick={() => handleTagClick(tag.slug)}
+                    className={`text-xs px-2.5 py-1.5 rounded-md font-mono transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 ${
                       isActive
-                        ? 'text-blue-100'
-                        : 'text-zinc-400 dark:text-zinc-500'
+                        ? 'bg-brand-blue text-white ring-1 ring-brand-blue font-semibold'
+                        : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/50 dark:border-zinc-800/80'
                     }`}
                   >
-                    ({tag.count.toLocaleString()})
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          {selectedTag && (
+                    <span>#{tag.name}</span>
+                    <span
+                      suppressHydrationWarning
+                      className={`text-[10px] pl-1 font-sans ${
+                        isActive
+                          ? 'text-blue-100'
+                          : 'text-zinc-400 dark:text-zinc-500'
+                      }`}
+                    >
+                      ({tag.usage_count.toLocaleString()})
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {activeTagSlug && (
             <button
-              onClick={() => onTagClick(null)}
+              onClick={() => router.push('/')}
               className="text-xs text-brand-blue hover:text-brand-blue-hover font-medium underline px-1 cursor-pointer hover:no-underline transition-all block mt-1"
             >
-              Hapus filter tag (#{selectedTag})
+              Hapus filter tag
             </button>
           )}
         </div>
