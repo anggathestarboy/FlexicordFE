@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -19,6 +20,9 @@ import {
   Star,
   ShieldCheck,
   Bookmark,
+  Key,
+  Flag,
+  AlertTriangle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
@@ -199,7 +203,70 @@ interface BookmarkPostDetail {
   user: { id: string; username: string; avatar_url: string | null };
 }
 
-type TabKey = "posts" | "activity" | "likes" | "bookmarks" | "credentials";
+interface PointLog {
+  id: string;
+  user_id: string;
+  points: number;
+  action_type: string;
+  reference_id: string;
+  description: string;
+  created_at: string;
+}
+
+interface PointsLogsResponse {
+  status: string;
+  username: string;
+  reputation_points: number;
+  data: PointLog[];
+}
+
+interface ReportItem {
+  id: string;
+  reporter_id: string;
+  target_id: string;
+  target_type: "user" | "post" | "comment" | string;
+  reason: string;
+  description: string | null;
+  status: string;
+  resolved_by: UserDetail | null;
+  created_at: string;
+  resolved_at: string | null;
+  reporter: UserDetail;
+  user: UserDetail | null;
+  post: any | null;
+  comment: any | null;
+}
+
+interface ReportsApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    current_page: number;
+    data: ReportItem[];
+    last_page: number;
+    total: number;
+  };
+}
+
+interface SelfWarningItem {
+  id: string;
+  moderator_id: string;
+  target_user_id: string;
+  action_type: string;
+  reason: string;
+  notes: string | null;
+  created_at: string;
+  moderator: UserDetail;
+  user: UserDetail;
+}
+
+interface SelfWarningResponse {
+  success: boolean;
+  message: string;
+  data: SelfWarningItem[];
+}
+
+type TabKey = "posts" | "activity" | "likes" | "bookmarks" | "credentials" | "points" | "reports" | "warnings";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -644,10 +711,254 @@ function BookmarkSection({
   );
 }
 
+// ─── Points Section ───────────────────────────────────────────────────────
+
+function PointsSection({ username }: { username: string }) {
+  const [data, setData] = useState<PointsLogsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/points-logs/user/${username}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Gagal memuat histori point.");
+        return res.json();
+      })
+      .then((d) => setData(d))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [username]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12 gap-2">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-blue" />
+        <span className="text-xs text-zinc-400">Memuat histori point…</span>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <p className="text-xs text-red-500 italic py-6 text-center">
+        {error ?? "Gagal memuat histori point."}
+      </p>
+    );
+  }
+
+  if (data.data.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-10 gap-2">
+        <Award className="h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+        <p className="text-xs text-zinc-400 italic">Belum ada histori point.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {data.data.map((log) => (
+        <div
+          key={log.id}
+          className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 flex justify-between items-center"
+        >
+          <div>
+            <p className="text-xs font-semibold text-zinc-900 dark:text-white">
+              {log.description}
+            </p>
+            <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
+              {formatDateFull(log.created_at)}
+            </p>
+          </div>
+          <div
+            className={`text-sm font-bold font-mono ${
+              log.points > 0 ? "text-emerald-500" : "text-red-500"
+            }`}
+          >
+            {log.points > 0 ? "+" : ""}
+            {log.points}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Reports Section ────────────────────────────────────────────────────────
+function ReportsSection({ username }: { username: string }) {
+  const [data, setData] = useState<ReportsApiResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/reports`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Gagal memuat laporan.");
+        return res.json();
+      })
+      .then((d) => {
+        if (d.success) {
+          setData(d);
+        } else {
+          throw new Error(d.message || "Gagal memuat laporan.");
+        }
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [username]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12 gap-2">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-blue" />
+        <span className="text-xs text-zinc-400">Memuat laporan Anda…</span>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <p className="text-xs text-red-500 italic py-6 text-center">
+        {error ?? "Gagal memuat laporan."}
+      </p>
+    );
+  }
+
+  if (data.data.data.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-10 gap-2">
+        <Flag className="h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+        <p className="text-xs text-zinc-400 italic">Anda belum membuat laporan.</p>
+      </div>
+    );
+  }
+
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case "resolved": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800";
+      case "dismissed": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800";
+      case "reviewed": return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800";
+      default: return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-800";
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {data.data.data.map((report) => (
+        <div key={report.id} className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col gap-2 text-left">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase text-zinc-500 flex items-center gap-1">
+              <Flag className="h-3 w-3" />
+              Target: {report.target_type === 'user' && report.user ? `@${report.user.username}` : report.target_type}
+            </span>
+            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${getStatusStyle(report.status)}`}>
+              {report.status}
+            </span>
+          </div>
+          <div className="bg-zinc-50 dark:bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/50">
+            <p className="text-xs font-semibold text-zinc-900 dark:text-white">Alasan: {report.reason}</p>
+            {report.description && (
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 italic leading-relaxed">"{report.description}"</p>
+            )}
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[10px] text-zinc-400 font-mono mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+            <span>Dilaporkan: {formatDateFull(report.created_at)}</span>
+            {report.resolved_at && (
+              <span className="text-emerald-500 font-bold">Diselesaikan: {formatDateFull(report.resolved_at)}</span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Warnings Section ───────────────────────────────────────────────────────
+function WarningsSection() {
+  const [data, setData] = useState<SelfWarningResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/self-warning`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Gagal memuat history warning.");
+        return res.json();
+      })
+      .then((d) => {
+        if (d.success) {
+          setData(d);
+        } else {
+          throw new Error(d.message || "Gagal memuat history warning.");
+        }
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12 gap-2">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-blue" />
+        <span className="text-xs text-zinc-400">Memuat riwayat warning…</span>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <p className="text-xs text-red-500 italic py-6 text-center">
+        {error ?? "Gagal memuat riwayat warning."}
+      </p>
+    );
+  }
+
+  if (!data.data || data.data.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-10 gap-2">
+        <AlertTriangle className="h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+        <p className="text-xs text-zinc-400 italic">Anda belum memiliki riwayat warning.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {data.data.map((warning) => (
+        <div key={warning.id} className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col gap-2 text-left">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase text-zinc-500 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3 text-yellow-500" />
+              Tindakan: {warning.action_type}
+            </span>
+            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800`}>
+              Warning
+            </span>
+          </div>
+          <div className="bg-zinc-50 dark:bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/50">
+            <p className="text-xs font-semibold text-zinc-900 dark:text-white">Alasan: {warning.reason}</p>
+            {warning.notes && (
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 italic leading-relaxed">"{warning.notes}"</p>
+            )}
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[10px] text-zinc-400 font-mono mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+            <span>Diberikan oleh: @{warning.moderator?.username || "Sistem"}</span>
+            <span>Tanggal: {formatDateFull(warning.created_at)}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Credentials Section ──────────────────────────────────────────────────────
 
-function CredentialsSection({ user }: { user: UserDetail }) {
+function CredentialsSection({ user, onNavigatePoints }: { user: UserDetail; onNavigatePoints?: () => void }) {
   const role = primaryRole(user.roles);
+  const router = useRouter();
 
   return (
     <div className="space-y-5">
@@ -720,9 +1031,24 @@ function CredentialsSection({ user }: { user: UserDetail }) {
           <span className="font-mono font-bold text-brand-blue">Lv. {user.level}</span>
         </div>
 
-        <div className="flex items-center justify-between text-xs py-1.5">
+        <div className="flex items-center justify-between text-xs py-1.5 border-b border-zinc-100 dark:border-zinc-800/60">
           <span className="text-zinc-500 dark:text-zinc-400">Reputasi</span>
-          <span className="font-mono font-black text-brand-blue text-sm">{user.reputation_points.toLocaleString()} pts</span>
+          <span 
+            className="font-mono font-black text-brand-blue text-sm cursor-pointer hover:underline"
+            onClick={() => onNavigatePoints && onNavigatePoints()}
+          >
+            {user.reputation_points.toLocaleString()} pts
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between text-xs py-1.5">
+          <span className="text-zinc-500 dark:text-zinc-400 font-medium">Kata Sandi</span>
+          <button
+            onClick={() => router.push("/profile/change-password")}
+            className="text-[10px] font-bold text-brand-blue hover:underline cursor-pointer"
+          >
+            Ubah Password
+          </button>
         </div>
       </div>
 
@@ -878,6 +1204,21 @@ export default function MyProfilePage() {
       label: "Kredensial",
       icon: <ShieldCheck className="h-3.5 w-3.5" />,
     },
+    {
+      key: "points",
+      label: "Histori Point",
+      icon: <Award className="h-3.5 w-3.5" />,
+    },
+    {
+      key: "reports",
+      label: "Laporan Saya",
+      icon: <Flag className="h-3.5 w-3.5" />,
+    },
+    {
+      key: "warnings",
+      label: "Warning",
+      icon: <AlertTriangle className="h-3.5 w-3.5" />,
+    },
   ];
 
   return (
@@ -911,14 +1252,22 @@ export default function MyProfilePage() {
             </div>
 
             {/* Edit Profile Button */}
-            <div className="pt-17">
+            <div className="pt-17 flex flex-col gap-2 items-end">
               <button
                 id="btn-edit-profile-toggle"
                 onClick={() => router.push("/profile/edit")}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 transition-all cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 transition-all cursor-pointer whitespace-nowrap w-40"
               >
                 <Edit3 className="h-3 w-3" />
                 Edit Profil
+              </button>
+              <button
+                id="btn-change-password-toggle"
+                onClick={() => router.push("/profile/change-password")}
+                className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 transition-all cursor-pointer whitespace-nowrap w-40"
+              >
+                <Key className="h-3 w-3" />
+                Ubah Password
               </button>
             </div>
           </div>
@@ -1026,13 +1375,15 @@ export default function MyProfilePage() {
             label: "Reputasi",
             value: user.reputation_points,
             sub: `Level ${user.level}`,
+            onClick: () => setActiveTab("points"),
           },
           { label: "Total Post", value: user.posts_count, sub: "pertanyaan" },
           { label: "Lencana", value: user.badges_count, sub: "badge" },
-        ].map(({ label, value, sub }) => (
+        ].map(({ label, value, sub, onClick }) => (
           <div
             key={label}
-            className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 text-center"
+            onClick={onClick}
+            className={`p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 text-center ${onClick ? 'cursor-pointer hover:border-brand-blue transition-all' : ''}`}
           >
             <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
               {label}
@@ -1203,7 +1554,22 @@ export default function MyProfilePage() {
 
           {/* ── Credentials tab ─────────────────────────────────────────── */}
           {activeTab === "credentials" && (
-            <CredentialsSection user={user} />
+            <CredentialsSection user={user} onNavigatePoints={() => setActiveTab("points")} />
+          )}
+
+          {/* ── Points tab ────────────────────────────────────────────────── */}
+          {activeTab === "points" && (
+            <PointsSection username={user.username} />
+          )}
+
+          {/* ── Reports tab ───────────────────────────────────────────────── */}
+          {activeTab === "reports" && (
+            <ReportsSection username={user.username} />
+          )}
+
+          {/* ── Warnings tab ──────────────────────────────────────────────── */}
+          {activeTab === "warnings" && (
+            <WarningsSection />
           )}
         </div>
       </div>
