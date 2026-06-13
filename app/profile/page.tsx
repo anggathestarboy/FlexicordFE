@@ -427,6 +427,7 @@ function LikesSection({
   username: string;
   onNavigatePost: (id: string) => void;
 }) {
+  const router = useRouter();
   const [data, setData] = useState<LikesApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -517,7 +518,7 @@ function LikesSection({
           ) : like.target_type === "comment" && like.comment ? (
             <div
               className="cursor-pointer group"
-              onClick={() => onNavigatePost(like.comment!.post_id)}
+              onClick={() => router.push(`/comment/${like.comment!.id}`)}
             >
               <p className="text-xs text-zinc-700 dark:text-zinc-300 line-clamp-2 group-hover:text-brand-blue">
                 &ldquo;{like.comment.body}&rdquo;
@@ -528,7 +529,7 @@ function LikesSection({
                 ) : null}
                 <span>↑{like.comment.vote_score}</span>
                 <span className="text-[10px] text-zinc-400">
-                  klik untuk lihat post →
+                  klik untuk lihat detail komentar →
                 </span>
               </div>
             </div>

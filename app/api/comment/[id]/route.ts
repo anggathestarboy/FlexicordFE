@@ -3,13 +3,61 @@ import { cookies } from "next/headers";
 import axios from "axios";
 import { EditCommentRequest, CommentDetailApiResponse, DeleteCommentResponse, ApiErrorResponse } from "./CommentDetailType";
 
-// Helper function to extract ID from request URL path
-function getIdFromUrl(request: NextRequest): string | undefined {
-  const pathname = request.nextUrl.pathname;
-  return pathname.split("/").pop();
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
+    const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json(
+        { message: "Comment ID tidak ditemukan" },
+        { status: 400 }
+      );
+    }
+
+    const response = await axios.get(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/comments/${id}`,
+      {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+          Accept: "application/json",
+        },
+        timeout: 5000,
+      }
+    );
+
+    return NextResponse.json(response.data);
+  } catch (error: any) {
+    console.error("GET Comment API Route Error:", error);
+
+    if (error.response) {
+      const status = error.response.status;
+      const message = error.response.data?.message || error.message;
+      return NextResponse.json({ message }, { status });
+    }
+
+    if (error.code === "ECONNABORTED") {
+      return NextResponse.json(
+        { message: "Request timeout" },
+        { status: 504 }
+      );
+    }
+
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
 
-export async function PUT(request: NextRequest) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("token")?.value;
@@ -21,7 +69,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const id = getIdFromUrl(request);
+    const { id } = await params;
     if (!id) {
       return NextResponse.json(
         { message: "Comment ID tidak ditemukan" },
@@ -90,7 +138,10 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("token")?.value;
@@ -102,7 +153,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const id = getIdFromUrl(request);
+    const { id } = await params;
     if (!id) {
       return NextResponse.json(
         { message: "Comment ID tidak ditemukan" },

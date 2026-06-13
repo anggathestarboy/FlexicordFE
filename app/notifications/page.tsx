@@ -127,6 +127,11 @@ export default function NotificationsPage() {
     if (notification.type === "follow" && notification.actor?.username) {
       return `/profile/${notification.actor.username}`;
     }
+    // If it's a comment, reply, or answer type, it is not clickable (user request)
+    const disabledTypes = ["comment", "new_comment", "reply", "new_reply", "answer", "new_answer"];
+    if (disabledTypes.includes(notification.type)) {
+      return null;
+    }
     // If it has reference_id, link to the post
     if (notification.reference_id) {
       return `/posts/${notification.reference_id}`;
