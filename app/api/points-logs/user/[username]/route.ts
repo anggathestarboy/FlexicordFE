@@ -11,6 +11,8 @@ export async function GET(
     const cookieStore = await cookies();
     const token = cookieStore.get("token")?.value;
 
+
+    
     const apiUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/points-logs/${username}`;
 
     try {

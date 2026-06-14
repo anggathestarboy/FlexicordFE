@@ -39,7 +39,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
       )}
 
       <Navbar
-        currentUser={currentUser}
+        currentUser={currentUser || null}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         currentView={pathname === '/' ? 'home' : (pathname.substring(1) as any)}
@@ -58,7 +58,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             <Sidebar
               currentView={pathname === '/' ? 'home' : (pathname.substring(1) as any)}
               setView={() => {}} // Handled by Next.js navigation
-              currentUser={currentUser}
+              currentUser={currentUser || null}
               selectedTag={selectedTag}
               setSelectedTag={setSelectedTag}
             />
