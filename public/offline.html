@@ -1,11 +1,805 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Flexicord: The Ocean | Hiu vs Barnyawa - Survival Challenge</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(145deg, #011c2b 0%, #000e17 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Poppins', 'Press Start 2P', cursive, monospace;
+            font-weight: bold;
+            touch-action: none;
+        }
+
+        .game-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            border-radius: 56px;
+            background: rgba(0, 20, 35, 0.65);
+            backdrop-filter: blur(2px);
+            box-shadow: 0 25px 40px rgba(0,0,0,0.6);
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 32px;
+            box-shadow: 0 12px 28px black;
+            cursor: none;
+            background: radial-gradient(circle at 30% 20%, #0a5e7e, #023047);
+        }
+
+        .info-panel {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            background: #071e2bdd;
+            backdrop-filter: blur(12px);
+            padding: 10px 25px;
+            border-radius: 60px;
+            margin-top: 18px;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #3bb4c1;
+        }
+
+        .bar-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #00000066;
+            padding: 5px 18px;
+            border-radius: 40px;
+        }
+
+        .bar-label {
+            font-size: 1rem;
+            letter-spacing: 2px;
+            color: #ffdd99;
+            text-shadow: 0 2px 2px black;
+        }
+
+        .bar-bg {
+            width: 240px;
+            height: 24px;
+            background-color: #2c1a0f;
+            border-radius: 30px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.6);
+        }
+
+        .bar-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #e63e1f, #ffb347);
+            border-radius: 30px;
+            transition: width 0.15s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            box-shadow: 0 0 6px #ffa559;
+        }
+
+        .score-box {
+            background: #010e14;
+            padding: 5px 22px;
+            border-radius: 36px;
+            color: #7efff5;
+            font-size: 1.6rem;
+            font-weight: bold;
+            font-family: monospace;
+            letter-spacing: 2px;
+        }
+
+        button {
+            background: #f5b042;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: bold;
+            padding: 7px 26px;
+            border-radius: 40px;
+            color: #02111a;
+            cursor: pointer;
+            transition: 0.08s linear;
+            font-family: inherit;
+            box-shadow: 0 5px 0 #7a3e0b;
+        }
+
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #7a3e0b;
+        }
+
+        .status {
+            background: #000000aa;
+            padding: 6px 18px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            color: #c1ffd0;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* Joystick Analog (Mobile) */
+        .analog-container {
+            display: none;
+            position: fixed;
+            bottom: 25px;
+            left: 25px;
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(14px);
+            border: 2px solid rgba(100, 200, 255, 0.7);
+            touch-action: none;
+            z-index: 100;
+        }
+
+        .joystick-base {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 55px;
+            height: 55px;
+            background: rgba(220, 240, 255, 0.95);
+            border-radius: 50%;
+            box-shadow: 0 0 0 3px #2c7da0, 0 5px 12px black;
+            transition: 0.02s linear;
+            cursor: grab;
+        }
+
+        @media (max-width: 850px) {
+            .analog-container { display: block; }
+            .bar-bg { width: 160px; }
+            .info-panel { gap: 8px; padding: 8px 14px; }
+            .bar-label { font-size: 0.8rem; }
+            .score-box { font-size: 1.2rem; padding: 3px 16px; }
+            .status { font-size: 0.7rem; }
+        }
+        
+        @keyframes pulseRed {
+            0% { text-shadow: 0 0 0 red; background: #aa2e1eaa; }
+            100% { text-shadow: 0 0 10px #ff5555; background: #ff2200aa; }
+        }
+        .warning {
+            animation: pulseRed 0.6s infinite alternate;
+            font-weight: bold;
+        }
+        
+        .game-title {
+            font-size: 1.7rem;
+            letter-spacing: 3px;
+            background: linear-gradient(135deg, #ffe6b3, #ffbc6e);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 5px #00000060;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    hello world
+<div>
+    <div class="game-wrapper">
+        <div class="game-title">🦈 FLEXICORD: THE OCEAN 🌊</div>
+        <canvas id="gameCanvas" width="1000" height="600"></canvas>
+        <div class="info-panel">
+            <div class="bar-container">
+                <span class="bar-label">🐋 BARNYAWA</span>
+                <div class="bar-bg">
+                    <div id="barFill" class="bar-fill" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="score-box">🐟 SKOR: <span id="scoreValue">0</span></div>
+            <button id="resetButton">🦈 RESET</button>
+        </div>
+        <div class="status" id="gameStatusText">⚡ MAKAN IKAN (+BAR) | HINDARI UBUR & BOM! ⚡</div>
+    </div>
+    <!-- Analog stick untuk mobile -->
+    <div id="analogStick" class="analog-container">
+        <div id="joystickKnob" class="joystick-base"></div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ------------------- CANVAS -------------------
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const W = 1000, H = 600;
+        
+        // ------------------- UI Elements -------------------
+        const barFillDiv = document.getElementById('barFill');
+        const scoreSpan = document.getElementById('scoreValue');
+        const resetBtn = document.getElementById('resetButton');
+        const statusDiv = document.getElementById('gameStatusText');
+        
+        // ------------------- Game State -------------------
+        let barValue = 100;      // 0 - 100
+        const maxBar = 100;
+        let score = 0;
+        let gameActive = true;
+        
+        // 🔥 BARNYAWA BERTAHAN: Setiap detik berkurang 2 poin (perlahan tapi pasti)
+        let decayInterval = null;
+        
+        // ------------------- HIU (lebih realistis) & GERAKAN DIPERLAMBAT -------------------
+        let shark = {
+            x: W/2,
+            y: H/2,
+            radius: 28,
+            angle: 0,
+            prevX: W/2,
+            prevY: H/2
+        };
+        const SHARK_SPEED = 4.8;   // DIPERLAMBAT (lebih responsif walau lambat, kontrol presisi)
+        
+        // ------------------- Entitas Dunia -------------------
+        let fishes = [];        // ikan +BAR
+        let jellyfishes = [];   // ubur-ubur -BAR
+        let bombs = [];         // bom aktif
+        
+        // ------------------- Spawn Parameter -------------------
+        let bombInterval = null;
+        const BOMB_SPAWN_DELAY = 14000; // 14 detik
+        
+        // ------------------- helper random -------------------
+        function randomPos(margin=45){
+            return {
+                x: margin + Math.random() * (W - margin*2),
+                y: margin + Math.random() * (H - margin*2)
+            };
+        }
+        
+        // ------------------- SPAWN Ikan & Ubur2 (Kecepatan gerak dipercepat) -------------------
+        function spawnFish(){
+            let pos = randomPos(40);
+            // Kecepatan ikan lebih cepat (dinamis)
+            let speedX = (Math.random() - 0.5) * 3.2;
+            let speedY = (Math.random() - 0.5) * 3.2;
+            fishes.push({
+                x: pos.x, y: pos.y, radius: 14,
+                vx: speedX,
+                vy: speedY,
+                barGain: 15,       // makan ikan +15 bar (cukup besar)
+                scoreBonus: 12
+            });
+        }
+        
+        function spawnJelly(){
+            let pos = randomPos(45);
+            jellyfishes.push({
+                x: pos.x, y: pos.y, radius: 17,
+                vx: (Math.random() - 0.5) * 2.6,
+                vy: (Math.random() - 0.5) * 2.6,
+                penalty: -22        // ubur-ubur sangat berbahaya -22 bar
+            });
+        }
+        
+        // ------------------- Bom dengan radius ledakan -------------------
+        function spawnBomb(){
+            if(!gameActive) return;
+            let pos = randomPos(60);
+            let bombObj = {
+                x: pos.x, y: pos.y, radius: 13,
+                explosionRadius: 88,
+                active: true,
+                explosionTimer: null
+            };
+            bombObj.explosionTimer = setTimeout(() => {
+                if(!gameActive) return;
+                let dx = shark.x - bombObj.x;
+                let dy = shark.y - bombObj.y;
+                if(Math.hypot(dx, dy) <= bombObj.explosionRadius){
+                    modifyBar(-28);   // Bom sangat merusak -28 bar
+                    addScore(-8);
+                    // Efek visual ledakan saat menggambar nanti
+                }
+                const idx = bombs.findIndex(b => b === bombObj);
+                if(idx !== -1) bombs.splice(idx,1);
+            }, 1300);
+            bombs.push(bombObj);
+        }
+        
+        // ------------------- Manajemen Interval Bom -------------------
+        function stopBombInterval(){
+            if(bombInterval){ clearInterval(bombInterval); bombInterval = null; }
+            for(let b of bombs){ if(b.explosionTimer) clearTimeout(b.explosionTimer); }
+            bombs = [];
+        }
+        
+        function startBombInterval(){
+            if(bombInterval) clearInterval(bombInterval);
+            bombInterval = setInterval(() => { if(gameActive) spawnBomb(); }, BOMB_SPAWN_DELAY);
+        }
+        
+        // ======================= PENGURANGAN BAR OTOMATIS (DECAY) =======================
+        function startDecay(){
+            if(decayInterval) clearInterval(decayInterval);
+            decayInterval = setInterval(() => {
+                if(gameActive){
+                    // barnyawa terus berkurang 2 poin per detik -> tantangan nyata!
+                    modifyBar(-2.2);
+                    // tambahkan efek dramatis
+                    if(barValue <= 30 && gameActive){
+                        statusDiv.innerHTML = "🔥 BARNYAWA MENIPIS CEPAT! MAKAN IKAN! 🔥";
+                    }
+                }
+            }, 1000);
+        }
+        
+        function stopDecay(){
+            if(decayInterval){
+                clearInterval(decayInterval);
+                decayInterval = null;
+            }
+        }
+        
+        // ------------------- Update Bar & UI -------------------
+        function updateUI(){
+            let percent = Math.max(0, (barValue / maxBar) * 100);
+            barFillDiv.style.width = `${percent}%`;
+            scoreSpan.innerText = Math.floor(score);
+            if(barValue <= 0 && gameActive === true){
+                gameActive = false;
+                statusDiv.innerText = "💀 GAME OVER - Barnyawa habis! Tekan RESET 💀";
+                statusDiv.style.background = "#8b0000aa";
+                statusDiv.classList.add('warning');
+                stopBombInterval();
+                stopDecay();
+            } else if (gameActive) {
+                if(barValue < 28){
+                    statusDiv.innerHTML = "⚠️ KRITIS! BARNYAWA SEGERA HABIS! MAKAN IKAN! ⚠️";
+                    statusDiv.classList.add('warning');
+                } else {
+                    statusDiv.innerHTML = "🐟 MAKAN IKAN (+15 BAR) | HINDARI UBUR(-22) & BOM(-28) | BAR OTOMATIS BERKURANG 🧨";
+                    statusDiv.classList.remove('warning');
+                    statusDiv.style.background = "#000000aa";
+                }
+            }
+        }
+        
+        function modifyBar(delta){
+            if(!gameActive) return;
+            let newBar = barValue + delta;
+            if(newBar > maxBar) newBar = maxBar;
+            if(newBar < 0) newBar = 0;
+            barValue = newBar;
+            updateUI();
+            if(barValue <= 0){
+                gameActive = false;
+                statusDiv.innerText = "💀 GAME OVER 💀 Tekan RESET";
+                statusDiv.style.background = "#8b0000aa";
+                stopBombInterval();
+                stopDecay();
+            }
+        }
+        
+        function addScore(amount){
+            if(!gameActive) return;
+            score += amount;
+            if(score < 0) score = 0;
+            updateUI();
+        }
+        
+        // ------------------- Gerakan Ikan & Ubur2 (DIPERCEPAT) -------------------
+        function moveEntities(){
+            for(let f of fishes){
+                f.x += f.vx;
+                f.y += f.vy;
+                // Pantul + percepatan tambahan agar lebih lincah
+                if(f.x - f.radius < 5) { f.x = 5 + f.radius; f.vx = -f.vx + (Math.random()-0.5)*0.8; }
+                if(f.x + f.radius > W-5) { f.x = W-5 - f.radius; f.vx = -f.vx + (Math.random()-0.5)*0.8; }
+                if(f.y - f.radius < 5) { f.y = 5 + f.radius; f.vy = -f.vy + (Math.random()-0.5)*0.8; }
+                if(f.y + f.radius > H-5) { f.y = H-5 - f.radius; f.vy = -f.vy + (Math.random()-0.5)*0.8; }
+                
+                // batasi kecepatan maksimal tapi tetap kencang
+                let maxSpeed = 4.2;
+                let spd = Math.hypot(f.vx, f.vy);
+                if(spd > maxSpeed){ f.vx = (f.vx/spd)*maxSpeed; f.vy = (f.vy/spd)*maxSpeed; }
+                if(spd < 1.2 && Math.random()<0.05){ f.vx += (Math.random()-0.5)*1.4; f.vy += (Math.random()-0.5)*1.4; }
+            }
+            for(let j of jellyfishes){
+                j.x += j.vx;
+                j.y += j.vy;
+                if(j.x - j.radius < 5) { j.x = 5 + j.radius; j.vx = -j.vx + (Math.random()-0.5)*0.7; }
+                if(j.x + j.radius > W-5) { j.x = W-5 - j.radius; j.vx = -j.vx + (Math.random()-0.5)*0.7; }
+                if(j.y - j.radius < 5) { j.y = 5 + j.radius; j.vy = -j.vy + (Math.random()-0.5)*0.7; }
+                if(j.y + j.radius > H-5) { j.y = H-5 - j.radius; j.vy = -j.vy + (Math.random()-0.5)*0.7; }
+                
+                let maxJelly = 3.6;
+                let spdJ = Math.hypot(j.vx, j.vy);
+                if(spdJ > maxJelly){ j.vx = (j.vx/spdJ)*maxJelly; j.vy = (j.vy/spdJ)*maxJelly; }
+            }
+        }
+        
+        // ------------------- Collision hiu vs ikan/ubur2 -------------------
+        function checkCollisions(){
+            if(!gameActive) return;
+            // Ikan (menguntungkan)
+            for(let i=0; i<fishes.length; i++){
+                let f = fishes[i];
+                let dist = Math.hypot(shark.x - f.x, shark.y - f.y);
+                if(dist < shark.radius + f.radius){
+                    modifyBar(f.barGain);
+                    addScore(f.scoreBonus);
+                    fishes.splice(i,1);
+                    i--;
+                }
+            }
+            // Ubur2 (berbahaya, mengurangi banyak)
+            for(let i=0; i<jellyfishes.length; i++){
+                let j = jellyfishes[i];
+                if(Math.hypot(shark.x - j.x, shark.y - j.y) < shark.radius + j.radius){
+                    modifyBar(j.penalty);
+                    addScore(-6);
+                    jellyfishes.splice(i,1);
+                    i--;
+                }
+            }
+        }
+        
+        // ------------------- Kontrol: MOUSE (PC) & ANALOG (mobile) dengan kecepatan HIU DIPERLAMBAT -------------------
+        let targetX = shark.x, targetY = shark.y;
+        
+        function setSharkPosition(worldX, worldY){
+            // Gerakan halus interpolasi? Tidak, agar responsif langsung, tapi kecepatan gerak max kita batasi via updateLerp
+            // Namun kita gunakan metode langsung dengan clamping dan kecepatan lambat melalui gerakan bertahap di updateMovement
+            // Agar lebih presisi: kita simpan target, lalu di game loop gerak bertahap dengan SHARK_SPEED.
+            targetX = Math.min(Math.max(worldX, shark.radius+6), W - shark.radius-6);
+            targetY = Math.min(Math.max(worldY, shark.radius+6), H - shark.radius-6);
+        }
+        
+        // Update pergerakan hiu secara smooth dengan kecepatan lambat (responsif tapi kontrol intuitif)
+        function updateSharkMovement(){
+            if(!gameActive) return;
+            let dx = targetX - shark.x;
+            let dy = targetY - shark.y;
+            let dist = Math.hypot(dx, dy);
+            if(dist > 0.5){
+                let move = Math.min(SHARK_SPEED, dist);
+                let stepX = (dx / dist) * move;
+                let stepY = (dy / dist) * move;
+                shark.x += stepX;
+                shark.y += stepY;
+                // update sudut hiu berdasarkan pergerakan real
+                if(Math.abs(stepX) > 0.1 || Math.abs(stepY) > 0.1){
+                    shark.angle = Math.atan2(stepY, stepX);
+                }
+                // Clamp final
+                shark.x = Math.min(Math.max(shark.x, shark.radius+6), W - shark.radius-6);
+                shark.y = Math.min(Math.max(shark.y, shark.radius+6), H - shark.radius-6);
+            }
+        }
+        
+        // Mouse & Touch untuk kontrol langsung
+        function onMouseMove(e){
+            if(!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            let canvasX = (e.clientX - rect.left) * scaleX;
+            let canvasY = (e.clientY - rect.top) * scaleY;
+            setSharkPosition(canvasX, canvasY);
+        }
+        
+        // ---------- JOYSTICK ANALOG (Mobile) ----------
+        const analogDiv = document.getElementById('analogStick');
+        const knob = document.getElementById('joystickKnob');
+        let activeTouchId = null;
+        let joystickActive = false;
+        let joyCenterX = 0, joyCenterY = 0;
+        let joyVector = { x: 0, y: 0 };
+        const maxRadiusJoy = 42;
+        
+        function updateJoystickPosition(touchX, touchY){
+            let dx = touchX - joyCenterX;
+            let dy = touchY - joyCenterY;
+            let dist = Math.hypot(dx, dy);
+            if(dist > maxRadiusJoy){
+                dx = dx / dist * maxRadiusJoy;
+                dy = dy / dist * maxRadiusJoy;
+            }
+            joyVector.x = dx / maxRadiusJoy;
+            joyVector.y = dy / maxRadiusJoy;
+            knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        }
+        
+        function resetJoystick(){
+            joyVector = { x: 0, y: 0 };
+            knob.style.transform = "translate(-50%, -50%)";
+            joystickActive = false;
+            activeTouchId = null;
+        }
+        
+        function handleAnalogStart(e){
+            e.preventDefault();
+            if(!gameActive) return;
+            const rect = analogDiv.getBoundingClientRect();
+            let touch = e.touches[0];
+            if(touch){
+                activeTouchId = touch.identifier;
+                joyCenterX = rect.left + rect.width/2;
+                joyCenterY = rect.top + rect.height/2;
+                let clientX = touch.clientX, clientY = touch.clientY;
+                updateJoystickPosition(clientX, clientY);
+                joystickActive = true;
+            }
+        }
+        
+        function handleAnalogMove(e){
+            if(!joystickActive || !gameActive) return;
+            for(let i=0; i<e.touches.length; i++){
+                let t = e.touches[i];
+                if(t.identifier === activeTouchId){
+                    updateJoystickPosition(t.clientX, t.clientY);
+                    break;
+                }
+            }
+        }
+        
+        function handleAnalogEnd(e){
+            if(!joystickActive) return;
+            resetJoystick();
+        }
+        
+        analogDiv.addEventListener('touchstart', handleAnalogStart, {passive: false});
+        analogDiv.addEventListener('touchmove', handleAnalogMove, {passive: false});
+        analogDiv.addEventListener('touchend', handleAnalogEnd);
+        analogDiv.addEventListener('touchcancel', handleAnalogEnd);
+        
+        // Update posisi dari joystick (tiap frame)
+        function updateJoystickControl(){
+            if(!gameActive) return;
+            if(joystickActive && (Math.abs(joyVector.x) > 0.08 || Math.abs(joyVector.y) > 0.08)){
+                let newTargetX = shark.x + joyVector.x * SHARK_SPEED * 1.2;
+                let newTargetY = shark.y + joyVector.y * SHARK_SPEED * 1.2;
+                newTargetX = Math.min(Math.max(newTargetX, shark.radius+6), W - shark.radius-6);
+                newTargetY = Math.min(Math.max(newTargetY, shark.radius+6), H - shark.radius-6);
+                targetX = newTargetX;
+                targetY = newTargetY;
+            }
+        }
+        
+        // ------------------- SPAWNER ALAMI (Ikan & Ubur2 periodic) lebih sering -------------------
+        let worldInterval = null;
+        function startWorldSpawner(){
+            if(worldInterval) clearInterval(worldInterval);
+            worldInterval = setInterval(() => {
+                if(!gameActive) return;
+                if(fishes.length < 15) spawnFish();
+                if(jellyfishes.length < 8 && Math.random() < 0.55) spawnJelly();
+                if(Math.random() < 0.4 && fishes.length < 20) spawnFish();
+                // jaga jumlah ubur agar tidak terlalu dominan
+                if(jellyfishes.length > 12 && Math.random()<0.3) spawnFish(); 
+            }, 1300);
+        }
+        
+        // ------------------- RESET GAME -------------------
+        function resetGame(){
+            stopBombInterval();
+            stopDecay();
+            if(worldInterval) clearInterval(worldInterval);
+            fishes = [];
+            jellyfishes = [];
+            bombs = [];
+            gameActive = true;
+            barValue = 100;
+            score = 0;
+            shark.x = W/2;
+            shark.y = H/2;
+            targetX = W/2;
+            targetY = H/2;
+            shark.angle = 0;
+            resetJoystick();
+            // spawn awal penuh tantangan
+            for(let i=0;i<12;i++) spawnFish();
+            for(let i=0;i<5;i++) spawnJelly();
+            updateUI();
+            statusDiv.classList.remove('warning');
+            statusDiv.style.background = "#000000aa";
+            statusDiv.innerText = "🌊 FLEXICORD: Mulai! Bar berkurang otomatis, makan ikan secepatnya! 🌊";
+            startBombInterval();
+            startWorldSpawner();
+            startDecay();    // barnyawa terus berkurang seiring waktu
+        }
+        
+        // ------------------- DRAWING (GRAFIS HIYU REALISTIS) -------------------
+        function drawShark(){
+            ctx.save();
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = "#023e5a";
+            ctx.translate(shark.x, shark.y);
+            ctx.rotate(shark.angle);
+            // Badan utama
+            ctx.beginPath();
+            ctx.ellipse(0, 0, shark.radius, shark.radius*0.7, 0, 0, Math.PI*2);
+            ctx.fillStyle = "#2f6f8f";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(-5, -8, 8, 6, 0, 0, Math.PI*2);
+            ctx.fillStyle = "#1e4f6b";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(4, 7, 12, 8, 0, 0, Math.PI*2);
+            ctx.fillStyle = "#aacfdf";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(-10, -18);
+            ctx.lineTo(5, -28);
+            ctx.lineTo(18, -19);
+            ctx.fillStyle = "#1f5777";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(-28, -2);
+            ctx.lineTo(-44, -12);
+            ctx.lineTo(-38, 0);
+            ctx.lineTo(-44, 12);
+            ctx.lineTo(-28, 5);
+            ctx.fillStyle = "#1f5777";
+            ctx.fill();
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(-12, -9, 6, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = "#010101";
+            ctx.beginPath();
+            ctx.arc(-15, -10, 2.8, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.arc(-17, -12, 1.2, 0, Math.PI*2);
+            ctx.fill();
+            for(let i=0;i<3;i++) {
+                ctx.beginPath();
+                ctx.moveTo(-5 + i*3, -4);
+                ctx.quadraticCurveTo(-7 + i*2, 0, -5 + i*3, 5);
+                ctx.strokeStyle = "#114455";
+                ctx.lineWidth = 1.8;
+                ctx.stroke();
+            }
+            ctx.fillStyle = "#f0f2f0";
+            for(let g=-3; g<=10; g+=4){
+                ctx.beginPath();
+                ctx.moveTo(g+8, 4);
+                ctx.lineTo(g+12, 12);
+                ctx.lineTo(g+4, 12);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+        
+        function drawFish(f){
+            ctx.save();
+            ctx.shadowBlur = 4;
+            ctx.fillStyle = "#ffb347";
+            ctx.beginPath();
+            ctx.ellipse(f.x, f.y, f.radius-2, f.radius-4, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = "#e67e22";
+            ctx.beginPath();
+            ctx.moveTo(f.x+12, f.y);
+            ctx.lineTo(f.x+22, f.y-6);
+            ctx.lineTo(f.x+22, f.y+6);
+            ctx.fill();
+            ctx.fillStyle = "#fff6e0";
+            ctx.beginPath();
+            ctx.arc(f.x-5, f.y-4, 3.5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = "#000";
+            ctx.beginPath();
+            ctx.arc(f.x-7, f.y-4, 1.5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+        }
+        
+        function drawJelly(j){
+            ctx.save();
+            ctx.shadowBlur = 6;
+            ctx.fillStyle = "#c084fc";
+            ctx.beginPath();
+            ctx.ellipse(j.x, j.y, j.radius-3, j.radius-3, 0, 0, Math.PI*2);
+            ctx.fill();
+            for(let t=0;t<8;t++){
+                let angle = Date.now()/400 + t;
+                let offX = Math.sin(angle)*5;
+                let offY = Math.cos(angle*0.8)*6;
+                ctx.beginPath();
+                ctx.moveTo(j.x+offX, j.y+offY);
+                ctx.lineTo(j.x+offX-5, j.y+offY+12);
+                ctx.lineTo(j.x+offX+5, j.y+offY+12);
+                ctx.fillStyle = "#dd99ff";
+                ctx.fill();
+            }
+            ctx.fillStyle = "#ff44aa";
+            ctx.font = "bold 16px monospace";
+            ctx.fillText("☠️", j.x-12, j.y-8);
+            ctx.restore();
+        }
+        
+        function drawBomb(b){
+            ctx.save();
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2);
+            ctx.fillStyle = "#2d2f36";
+            ctx.fill();
+            ctx.fillStyle = "#e34d2b";
+            ctx.font = "bold 20px monospace";
+            ctx.fillText("💣", b.x-12, b.y-10);
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.radius+4, 0, Math.PI*2);
+            ctx.strokeStyle = "#ff7744";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        }
+        
+        function drawScene(){
+            ctx.clearRect(0,0,W,H);
+            ctx.fillStyle = "#044b66";
+            ctx.fillRect(0,0,W,H);
+            for(let i=0;i<120;i++){
+                ctx.fillStyle = `rgba(180,230,255,${Math.random() * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(Math.random()*W, Math.random()*H, Math.random()*3+1,0,Math.PI*2);
+                ctx.fill();
+            }
+            for(let f of fishes) drawFish(f);
+            for(let j of jellyfishes) drawJelly(j);
+            for(let b of bombs) drawBomb(b);
+            drawShark();
+            ctx.font = "bold 22px 'Segoe UI'";
+            ctx.fillStyle = "#FFF5cf";
+            ctx.fillText(`🐋 Barnyawa: ${Math.floor(barValue)}%`, 18, 48);
+            ctx.fillStyle = "#c9f0ff";
+            ctx.fillText(`⭐ Skor: ${Math.floor(score)}`, 18, 92);
+        }
+        
+        // ------------------- ANIMATION LOOP -------------------
+        function gameLoop(){
+            if(gameActive){
+                moveEntities();
+                checkCollisions();
+                updateSharkMovement();   // gerakan hiu lambat & responsif
+                updateJoystickControl(); // update target dari analog
+                if(barValue <= 0){
+                    gameActive = false;
+                    stopBombInterval();
+                    stopDecay();
+                    statusDiv.innerText = "💀 GAME OVER 💀 RESET";
+                }
+            }
+            drawScene();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // ------------------- EVENT & INIT -------------------
+        canvas.addEventListener('mousemove', onMouseMove);
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); }, {passive: false});
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); }, {passive: false});
+        resetBtn.addEventListener('click', ()=>{
+            resetGame();
+        });
+        
+        resetGame();
+        gameLoop();
+    })();
+</script>
 </body>
 </html>
