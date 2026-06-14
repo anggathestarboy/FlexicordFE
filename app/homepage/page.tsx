@@ -57,12 +57,20 @@ function HomePageContent() {
     [searchParams, pathname, router]
   );
 
+  // Sync searchInput with URL search param
   useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
+
+  // Debounce search input changes
+  useEffect(() => {
+    if (searchInput === search) return;
+
     const timer = setTimeout(() => {
       updateParams({ search: searchInput || null, page: "1" });
     }, 400);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, search, updateParams]);
 
   useEffect(() => {
     getPosts();

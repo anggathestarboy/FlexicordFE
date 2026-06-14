@@ -79,11 +79,13 @@ function TagPageContent() {
   // Handle post search with debounce
   useEffect(() => {
     if (!slug) return;
+    if (postSearchInput === search) return;
+
     const timer = setTimeout(() => {
       updateParams({ search: postSearchInput || null, page: "1" });
     }, 400);
     return () => clearTimeout(timer);
-  }, [postSearchInput, slug, updateParams]);
+  }, [postSearchInput, slug, search, updateParams]);
 
   // Fetch posts when slug, sort, page, or search changes
   useEffect(() => {
