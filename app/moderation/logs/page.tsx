@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ScrollText, Search, Clock, ShieldAlert, User, Eye, X, Filter, RefreshCw, AlertTriangle, AlertCircle, CheckCircle, Trash2 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import axios from "axios";
@@ -32,9 +33,6 @@ interface ModerationLog {
 
 export default function ModerationLogsPage() {
   const { currentUser } = useApp();
-  const [logs, setLogs] = useState<ModerationLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedActionFilter, setSelectedActionFilter] = useState("all");
   const [selectedLog, setSelectedLog] = useState<ModerationLog | null>(null);
@@ -44,39 +42,31 @@ export default function ModerationLogsPage() {
     currentUser?.primary_role?.name === "admin" ||
     currentUser?.primary_role?.name === "moderator";
 
-  const fetchLogs = () => {
-    setLoading(true);
-    setError(null);
-    axios
-      .get("/api/moderation-logs")
-      .then((res) => {
-        if (res.data?.data) {
-          setLogs(res.data.data);
-        } else if (Array.isArray(res.data)) {
-          setLogs(res.data);
-        } else {
-          setError("Struktur log tidak dikenali.");
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-        if (err.response?.status === 401 || err.response?.status === 403) {
-          setError("Anda tidak memiliki akses untuk melihat log moderasi.");
-        } else {
-          setError(err.response?.data?.message || "Gagal mengambil log moderasi dari server.");
-        }
-      })
-      .finally(() => setLoading(false));
-  };
+  const { data: logsData, isLoading, isError, error: queryError, refetch } = useQuery<ModerationLog[], Error>({
+    queryKey: ["moderation-logs"],
+    queryFn: async () => {
+      const res = await axios.get("/api/moderation-logs");
+      if (res.data?.data) return res.data.data;
+      if (Array.isArray(res.data)) return res.data;
+      throw new Error("Struktur log tidak dikenali.");
+    },
+    enabled: !!currentUser && isAuthorized,
+  });
 
-  useEffect(() => {
-    if (isAuthorized) {
-      fetchLogs();
-    } else if (currentUser) {
-      setError("Akses ditolak. Halaman ini hanya untuk Moderator dan Admin.");
-      setLoading(false);
+  const logs = logsData || [];
+  const loading = isAuthorized ? isLoading : false;
+
+  let error: string | null = null;
+  if (currentUser && !isAuthorized) {
+    error = "Akses ditolak. Halaman ini hanya untuk Moderator dan Admin.";
+  } else if (isError && queryError) {
+    const errObj: any = queryError;
+    if (errObj?.response?.status === 401 || errObj?.response?.status === 403) {
+      error = "Anda tidak memiliki akses untuk melihat log moderasi.";
+    } else {
+      error = errObj?.response?.data?.message || errObj?.message || "Gagal mengambil log moderasi dari server.";
     }
-  }, [currentUser, isAuthorized]);
+  }
 
   if (!currentUser) {
     return (
@@ -204,7 +194,7 @@ export default function ModerationLogsPage() {
         </div>
 
         <button
-          onClick={fetchLogs}
+          onClick={() => refetch()}
           disabled={loading}
           className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 transition-all cursor-pointer active:scale-97 disabled:opacity-50 shrink-0 select-none"
         >
@@ -511,14 +501,6 @@ export default function ModerationLogsPage() {
                   </div>
                 </div>
               )}
-
-              {/* JSON Metadata */}
-              <div className="space-y-1.5">
-                <span className="block text-[10px] font-bold uppercase text-zinc-400 dark:text-zinc-500 tracking-wider">Raw Log Object</span>
-                <pre className="p-3 bg-zinc-950 text-cyan-400 border border-zinc-800 rounded-xl text-[10px] font-mono leading-relaxed overflow-x-auto max-h-[150px]">
-                  {JSON.stringify(selectedLog, null, 2)}
-                </pre>
-              </div>
             </div>
 
             {/* Footer */}

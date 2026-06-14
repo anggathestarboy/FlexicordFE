@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { ApiResponse, Post } from "@/lib/types";
+import { useApp } from "@/context/AppContext";
 
 type UUID = string;
 type SortTab = "terpopuler" | "terbaru";
@@ -28,6 +29,7 @@ function HomePageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { currentUser } = useApp();
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +129,10 @@ function HomePageContent() {
 
   const handleLike = async (e: React.MouseEvent, postId: UUID) => {
     e.stopPropagation();
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
 
     const targetPost = posts.find((p) => p.id === postId);
     if (!targetPost) return;
@@ -183,6 +189,10 @@ function HomePageContent() {
 
   const handleBookmark = async (e: React.MouseEvent, postId: UUID) => {
     e.stopPropagation();
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
 
     const targetPost = posts.find((p) => p.id === postId);
     if (!targetPost) return;

@@ -18,11 +18,14 @@ import {
   AlertCircle,
   Edit2,
   Trash2,
+  Flag,
+  History,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Post, Comment } from "@/app/api/posts/[id]/PostDetailType";
 import { useApp } from "@/context/AppContext";
+import ReportModal from "@/components/ReportModal";
 
 // Extend Post type to include optional bookmark_id used for optimistic UI
 interface PostWithBookmark extends Post {
@@ -132,6 +135,10 @@ export default function QuestionDetailPage({
   // Quill refs for edit post form
   const editQuillRef = useRef<any>(null);
   const editContainerRef = useRef<HTMLDivElement>(null);
+
+  // Report Modal states
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ id: string; type: "post" | "comment" }>({ id: "", type: "post" });
 
   const fetchCategories = async () => {
     try {
@@ -344,6 +351,10 @@ export default function QuestionDetailPage({
 
   // ─── Vote handler (Post & Comment) ────────────────────────────────────────────
   const handleVote = async (targetId: string, voteType: "upvote" | "downvote", isComment: boolean = false) => {
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
     if (!post) return;
 
     const prevPost = post;
@@ -513,6 +524,10 @@ export default function QuestionDetailPage({
   // ─── Like / Unlike handler ────────────────────────────────────────────────────
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
     if (!post) return;
 
     const isLiked = post.user_has_liked;
@@ -562,6 +577,10 @@ export default function QuestionDetailPage({
   // ─── Bookmark / Unbookmark handler ────────────────────────────────────────────
   const handleBookmark = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
     if (!post) return;
 
     const isBookmarked = post.user_has_bookmarked;
@@ -625,6 +644,10 @@ export default function QuestionDetailPage({
   // ─── Comment Like / Unlike handler ────────────────────────────────────────────
   const handleCommentLike = async (e: React.MouseEvent, commentId: string) => {
     e.stopPropagation();
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
     if (!post) return;
 
     let isLiked = false;
@@ -1007,6 +1030,17 @@ export default function QuestionDetailPage({
             {post.title}
           </h1>
           <div className="flex items-center gap-2 shrink-0">
+            {isAdminOrModerator && !isEditingPost && (
+              <button
+                onClick={() => router.push(`/posts/${post.id}/history`)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-855 border border-zinc-200 dark:border-zinc-800 hover:text-brand-blue text-xs font-semibold rounded-lg text-zinc-600 dark:text-zinc-350 transition-colors cursor-pointer shrink-0"
+                title="Lihat Riwayat Suntingan"
+              >
+                <History className="h-3.5 w-3.5" />
+                <span>History</span>
+              </button>
+            )}
+
             {isPostOwnerOrAdmin && !isEditingPost && (
               <button
                 onClick={() => {
@@ -1164,6 +1198,20 @@ export default function QuestionDetailPage({
           <span className="text-[10px] font-mono text-zinc-400">
             {post.bookmarks_count}
           </span>
+
+          {/* Report */}
+          {currentUser && (
+            <button
+              onClick={() => {
+                setReportTarget({ id: post.id, type: "post" });
+                setShowReportModal(true);
+              }}
+              className="mt-3 text-zinc-300 hover:text-orange-500 dark:text-zinc-600 transition-colors cursor-pointer"
+              title="Laporkan pertanyaan ini"
+            >
+              <Flag className="h-5 w-5" />
+            </button>
+          )}
         </div>
 
         {/* CONTENT */}
@@ -1616,8 +1664,35 @@ export default function QuestionDetailPage({
                               </button>
                             </>
                           )}
+                          {currentUser && currentUser.id !== comm.user_id && (
+                            <>
+                              <span>•</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReportTarget({ id: comm.id, type: "comment" });
+                                  setShowReportModal(true);
+                                }}
+                                className="hover:text-orange-500 cursor-pointer font-sans font-bold transition-colors flex items-center gap-1"
+                                title="Laporkan komentar ini"
+                              >
+                                <Flag className="h-3 w-3" />
+                                <span>Laporkan</span>
+                              </button>
+                            </>
+                          )}
                           {isAdminOrModerator && (
                             <>
+                              <span>•</span>
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/comment/${comm.id}/history`)}
+                                className="hover:text-brand-blue cursor-pointer font-sans font-bold transition-colors flex items-center gap-1"
+                                title="Lihat riwayat suntingan komentar"
+                              >
+                                <History className="h-3 w-3" />
+                                <span>History</span>
+                              </button>
                               <span>•</span>
                               <button
                                 type="button"
@@ -1844,8 +1919,35 @@ export default function QuestionDetailPage({
                                     </button>
                                   </>
                                 )}
+                                {currentUser && currentUser.id !== reply.user_id && (
+                                  <>
+                                    <span>•</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setReportTarget({ id: reply.id, type: "comment" });
+                                        setShowReportModal(true);
+                                      }}
+                                      className="hover:text-orange-500 cursor-pointer font-sans font-bold transition-colors flex items-center gap-1"
+                                      title="Laporkan balasan ini"
+                                    >
+                                      <Flag className="h-3 w-3" />
+                                      <span>Laporkan</span>
+                                    </button>
+                                  </>
+                                )}
                                 {isAdminOrModerator && (
                                   <>
+                                    <span>•</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => router.push(`/comment/${reply.id}/history`)}
+                                      className="hover:text-brand-blue cursor-pointer font-sans font-bold transition-colors flex items-center gap-1"
+                                      title="Lihat riwayat suntingan balasan"
+                                    >
+                                      <History className="h-3 w-3" />
+                                      <span>History</span>
+                                    </button>
                                     <span>•</span>
                                     <button
                                       type="button"
@@ -1875,6 +1977,19 @@ export default function QuestionDetailPage({
 
         </div>
       </div>
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        targetId={reportTarget.id}
+        targetType={reportTarget.type}
+        onSuccess={() => {
+          if (showNotification) {
+            showNotification("Laporan berhasil dikirim!", "success");
+          }
+        }}
+      />
     </div>
   );
 }

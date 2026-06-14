@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import {
   Camera,
   ChevronLeft,
@@ -13,10 +15,6 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
-import {
-  validateUsername,
-  validateEmail,
-} from "@/app/api/profile/update/ProfileUpdateType";
 
 const STORAGE_BASE = "https://pegaduanmasyarakat.alwaysdata.net/storage/";
 
@@ -25,17 +23,23 @@ function avatarSrc(url: string | null | undefined): string | null {
   return url.startsWith("http") ? url : `${STORAGE_BASE}${url}`;
 }
 
+const validationSchema = Yup.object({
+  username: Yup.string()
+    .required("Username wajib diisi.")
+    .max(12, "Username maksimal 12 karakter.")
+    .matches(/^[a-zA-Z0-9_]+$/, "Username hanya boleh mengandung huruf, angka, dan underscore (_)."),
+  email: Yup.string()
+    .required("Email wajib diisi.")
+    .max(255, "Email maksimal 255 karakter.")
+    .email("Format email tidak valid."),
+  bio: Yup.string().nullable(),
+});
+
 export default function EditProfilePage() {
   const router = useRouter();
   const { currentUser, setCurrentUser, showNotification } = useApp();
 
-  // Form states
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [bio, setBio] = useState("");
-  
   // Avatar states
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
   // UI states
@@ -47,13 +51,86 @@ export default function EditProfilePage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const formik = useFormik({
+    initialValues: {
+      username: "",
+      email: "",
+      bio: "",
+      avatarFile: null as File | null,
+    },
+    validationSchema,
+    onSubmit: async (values) => {
+      setErrorMsg(null);
+      setSuccessMsg(null);
+      setFieldErrors({});
+      setLoading(true);
+
+      try {
+        const formData = new FormData();
+        formData.append("username", values.username.trim());
+        formData.append("email", values.email.trim());
+        formData.append("bio", (values.bio || "").trim());
+        
+        if (values.avatarFile) {
+          formData.append("avatar_url", values.avatarFile);
+        }
+
+        const response = await fetch("/api/profile/update", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setSuccessMsg(data.message || "Profil berhasil diperbarui!");
+          
+          // Sync context state by re-fetching /api/me
+          const meRes = await fetch("/api/me");
+          if (meRes.ok) {
+            const meData = await meRes.json();
+            if (meData.user) {
+              setCurrentUser(meData.user);
+            }
+          }
+
+          if (showNotification) {
+            showNotification(data.message || "Profil berhasil diperbarui! 🎉");
+          }
+
+          // Refresh Next.js router cache then redirect back to profile
+          router.refresh();
+          setTimeout(() => {
+            router.push("/profile");
+          }, 800);
+        } else {
+          if (response.status === 422 && data.errors) {
+            // Validation error from backend
+            setFieldErrors(data.errors);
+            setErrorMsg(data.message || "Validasi gagal. Periksa kembali isian Anda.");
+          } else {
+            setErrorMsg(data.message || "Gagal memperbarui profil.");
+          }
+        }
+      } catch (err) {
+        console.error("Submit profile error:", err);
+        setErrorMsg("Terjadi kesalahan jaringan atau server.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  });
+
   // 1. Authenticate and populate form
   useEffect(() => {
     // If the global state already has the user, use it
     if (currentUser) {
-      setUsername(currentUser.username || "");
-      setEmail(currentUser.email || "");
-      setBio(currentUser.bio || "");
+      formik.setValues({
+        username: currentUser.username || "",
+        email: currentUser.email || "",
+        bio: currentUser.bio || "",
+        avatarFile: null,
+      });
       setPreviewUrl(avatarSrc(currentUser.avatar_url));
       setCheckingAuth(false);
     } else {
@@ -65,9 +142,12 @@ export default function EditProfilePage() {
             const data = await res.json();
             if (data.user) {
               setCurrentUser(data.user);
-              setUsername(data.user.username || "");
-              setEmail(data.user.email || "");
-              setBio(data.user.bio || "");
+              formik.setValues({
+                username: data.user.username || "",
+                email: data.user.email || "",
+                bio: data.user.bio || "",
+                avatarFile: null,
+              });
               setPreviewUrl(avatarSrc(data.user.avatar_url));
             } else {
               router.push("/login");
@@ -113,7 +193,7 @@ export default function EditProfilePage() {
     }
 
     // Update file state and preview
-    setAvatarFile(file);
+    formik.setFieldValue("avatarFile", file);
     const blobUrl = URL.createObjectURL(file);
     setPreviewUrl(blobUrl);
     setErrorMsg(null); // Clear errors if file is valid
@@ -121,83 +201,6 @@ export default function EditProfilePage() {
 
   const triggerFileSelect = () => {
     fileInputRef.current?.click();
-  };
-
-  // 3. Form Submit Handler
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setSuccessMsg(null);
-    setFieldErrors({});
-
-    // Client-side validations
-    const userErr = validateUsername(username);
-    if (userErr) {
-      setErrorMsg(userErr);
-      return;
-    }
-
-    const emailErr = validateEmail(email);
-    if (emailErr) {
-      setErrorMsg(emailErr);
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("username", username.trim());
-      formData.append("email", email.trim());
-      formData.append("bio", bio.trim());
-      
-      if (avatarFile) {
-        formData.append("avatar_url", avatarFile);
-      }
-
-      const response = await fetch("/api/profile/update", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccessMsg(data.message || "Profil berhasil diperbarui!");
-        
-        // Sync context state by re-fetching /api/me
-        const meRes = await fetch("/api/me");
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          if (meData.user) {
-            setCurrentUser(meData.user);
-          }
-        }
-
-        if (showNotification) {
-          showNotification(data.message || "Profil berhasil diperbarui! 🎉");
-        }
-
-        // Refresh Next.js router cache then redirect back to profile
-        router.refresh();
-        setTimeout(() => {
-          router.push("/profile");
-        }, 800);
-      } else {
-        if (response.status === 422 && data.errors) {
-          // Validation error from backend
-          setFieldErrors(data.errors);
-          setErrorMsg(data.message || "Validasi gagal. Periksa kembali isian Anda.");
-        } else {
-          setErrorMsg(data.message || "Gagal memperbarui profil.");
-        }
-      }
-    } catch (err) {
-      console.error("Submit profile error:", err);
-      setErrorMsg("Terjadi kesalahan jaringan atau server.");
-    } finally {
-      setLoading(false);
-    }
   };
 
   if (checkingAuth) {
@@ -216,6 +219,7 @@ export default function EditProfilePage() {
       {/* Header with back navigation */}
       <div className="flex items-center justify-between">
         <button
+          type="button"
           onClick={() => router.push("/profile")}
           className="inline-flex items-center gap-1 text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer"
         >
@@ -229,7 +233,7 @@ export default function EditProfilePage() {
         {/* Decorative Header Bar */}
         <div className="h-3 bg-gradient-to-r from-brand-blue to-sky-500" />
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={formik.handleSubmit} className="p-6 space-y-6">
           <div className="border-b border-zinc-150 dark:border-zinc-800 pb-4">
             <h1 className="text-lg font-bold text-zinc-900 dark:text-white">
               Edit Profil Anda
@@ -282,7 +286,7 @@ export default function EditProfilePage() {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-brand-blue text-white font-black text-3xl uppercase">
-                  {username ? username.charAt(0) : <UserIcon className="h-8 w-8" />}
+                  {formik.values.username ? formik.values.username.charAt(0) : <UserIcon className="h-8 w-8" />}
                 </div>
               )}
               {/* Overlay on hover */}
@@ -332,19 +336,25 @@ export default function EditProfilePage() {
                 </div>
                 <input
                   id="username"
+                  name="username"
                   type="text"
                   required
                   maxLength={12}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ""))} // Auto-remove spaces
+                  value={formik.values.username}
+                  onChange={(e) => formik.setFieldValue("username", e.target.value.replace(/\s+/g, ""))} // Auto-remove spaces
                   placeholder="Masukkan username baru..."
                   className="block w-full pl-10 pr-3 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue text-zinc-900 dark:text-white transition-all font-mono"
                 />
               </div>
+              {formik.touched.username && formik.errors.username && (
+                <div className="text-red-500 text-[11px] font-semibold text-left mt-1">
+                  {formik.errors.username}
+                </div>
+              )}
               <div className="flex justify-between items-center text-[10px] text-zinc-400 px-1">
                 <span>Hanya huruf, angka, dan underscore (_).</span>
-                <span className={username.length > 12 ? "text-red-500 font-bold" : ""}>
-                  {username.length}/12
+                <span className={formik.values.username.length > 12 ? "text-red-500 font-bold" : ""}>
+                  {formik.values.username.length}/12
                 </span>
               </div>
             </div>
@@ -363,14 +373,20 @@ export default function EditProfilePage() {
                 </div>
                 <input
                   id="email"
+                  name="email"
                   type="email"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={formik.values.email}
+                  onChange={formik.handleChange}
                   placeholder="Masukkan alamat email..."
                   className="block w-full pl-10 pr-3 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue text-zinc-900 dark:text-white transition-all"
                 />
               </div>
+              {formik.touched.email && formik.errors.email && (
+                <div className="text-red-500 text-[11px] font-semibold text-left mt-1">
+                  {formik.errors.email}
+                </div>
+              )}
             </div>
 
             {/* Bio TextArea */}
@@ -387,13 +403,19 @@ export default function EditProfilePage() {
                 </div>
                 <textarea
                   id="bio"
+                  name="bio"
                   rows={4}
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
+                  value={formik.values.bio || ""}
+                  onChange={formik.handleChange}
                   placeholder="Ceritakan sedikit tentang diri Anda (opsional)..."
                   className="block w-full pl-10 pr-3 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue text-zinc-900 dark:text-white transition-all resize-none"
                 />
               </div>
+              {formik.touched.bio && formik.errors.bio && (
+                <div className="text-red-500 text-[11px] font-semibold text-left mt-1">
+                  {formik.errors.bio}
+                </div>
+              )}
             </div>
           </div>
 

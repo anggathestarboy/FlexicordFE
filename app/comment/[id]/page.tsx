@@ -20,10 +20,12 @@ import {
   ExternalLink,
   UserPlus,
   UserMinus,
+  Flag,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
+import ReportModal from "@/components/ReportModal";
 
 interface Role {
   id: string;
@@ -133,6 +135,7 @@ export default function CommentDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const { currentUser, showNotification } = useApp();
+  const isAdminOrModerator = currentUser?.primary_role?.name === "admin" || currentUser?.primary_role?.name === "moderator";
 
   const [comment, setComment] = useState<CommentDetail | null>(null);
   const [postOwnerId, setPostOwnerId] = useState<string | null>(null);
@@ -146,6 +149,10 @@ export default function CommentDetailPage({
   // Replies states
   const [replyText, setReplyText] = useState("");
   const [submittingReply, setSubmittingReply] = useState(false);
+
+  // Report states
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ id: string; type: "post" | "comment" }>({ id: "", type: "comment" });
 
   // Fetch comment details
   const fetchCommentDetails = async (showSpinner = true) => {
@@ -198,11 +205,11 @@ export default function CommentDetailPage({
 
   // Handle follow/unfollow
   const handleFollowAuthor = async () => {
-    if (!comment || followLoading || !comment.user?.username) return;
     if (!currentUser) {
-      showNotification("Silakan login terlebih dahulu untuk mengikuti pengguna.", "info");
+      router.push("/login");
       return;
     }
+    if (!comment || followLoading || !comment.user?.username) return;
 
     setFollowLoading(true);
     const wasFollowing = isFollowing;
@@ -232,11 +239,11 @@ export default function CommentDetailPage({
 
   // Vote comment handler
   const handleVoteComment = async (voteType: "upvote" | "downvote") => {
-    if (!comment) return;
     if (!currentUser) {
-      showNotification("Silakan login untuk memberikan dukungan.", "info");
+      router.push("/login");
       return;
     }
+    if (!comment) return;
 
     // Check if toggling same vote
     const currentVote = comment.user_vote_type;
@@ -291,11 +298,11 @@ export default function CommentDetailPage({
 
   // Like/Unlike comment handler
   const handleLikeComment = async () => {
-    if (!comment) return;
     if (!currentUser) {
-      showNotification("Silakan login terlebih dahulu untuk menyukai komentar.", "info");
+      router.push("/login");
       return;
     }
+    if (!comment) return;
 
     const wasLiked = !!comment.user_has_liked;
 
@@ -332,11 +339,11 @@ export default function CommentDetailPage({
 
   // Vote reply handler
   const handleVoteReply = async (replyId: string, voteType: "upvote" | "downvote") => {
-    if (!comment) return;
     if (!currentUser) {
-      showNotification("Silakan login untuk memberikan dukungan.", "info");
+      router.push("/login");
       return;
     }
+    if (!comment) return;
 
     const replyIndex = comment.replies.findIndex((r) => r.id === replyId);
     if (replyIndex === -1) return;
@@ -398,11 +405,11 @@ export default function CommentDetailPage({
 
   // Like reply handler
   const handleLikeReply = async (replyId: string) => {
-    if (!comment) return;
     if (!currentUser) {
-      showNotification("Silakan login terlebih dahulu untuk menyukai balasan.", "info");
+      router.push("/login");
       return;
     }
+    if (!comment) return;
 
     const replyIndex = comment.replies.findIndex((r) => r.id === replyId);
     if (replyIndex === -1) return;
@@ -741,6 +748,31 @@ export default function CommentDetailPage({
               <span>{comment.user_has_liked ? "Disukai" : "Sukai"}</span>
             </button>
 
+            {currentUser && !isOwnComment && (
+              <button
+                onClick={() => {
+                  setReportTarget({ id: comment.id, type: "comment" });
+                  setShowReportModal(true);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-bold bg-white hover:bg-orange-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 hover:border-orange-200 text-zinc-500 hover:text-orange-600 transition-all cursor-pointer"
+                title="Laporkan komentar ini"
+              >
+                <Flag className="h-3.5 w-3.5" />
+                <span>Laporkan</span>
+              </button>
+            )}
+
+            {isAdminOrModerator && (
+              <button
+                onClick={() => router.push(`/comment/${comment.id}/history`)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-bold bg-white hover:bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 text-zinc-500 hover:text-brand-blue transition-all cursor-pointer"
+                title="Lihat Riwayat Suntingan Lengkap"
+              >
+                <History className="h-3.5 w-3.5" />
+                <span>History</span>
+              </button>
+            )}
+
             {comment.comment_edit_histories.length > 0 && (
               <span className="inline-flex items-center gap-1 text-[11px] text-zinc-400 font-mono">
                 <History className="h-3 w-3" />
@@ -933,6 +965,23 @@ export default function CommentDetailPage({
                         <Heart className={`h-3 w-3 ${reply.user_has_liked ? "fill-current" : ""}`} />
                         <span>{reply.user_has_liked ? "Disukai" : "Sukai"}</span>
                       </button>
+
+                      {currentUser && currentUser.id !== reply.user?.id && (
+                        <>
+                          <span className="text-zinc-350 dark:text-zinc-700 select-none">•</span>
+                          <button
+                            onClick={() => {
+                              setReportTarget({ id: reply.id, type: "comment" });
+                              setShowReportModal(true);
+                            }}
+                            className="flex items-center gap-1 hover:text-orange-500 transition-colors cursor-pointer text-zinc-400 font-semibold"
+                            title="Laporkan balasan ini"
+                          >
+                            <Flag className="h-3 w-3" />
+                            <span>Laporkan</span>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -982,6 +1031,19 @@ export default function CommentDetailPage({
           </button>
         </div>
       </form>
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        targetId={reportTarget.id}
+        targetType={reportTarget.type}
+        onSuccess={() => {
+          if (showNotification) {
+            showNotification("Laporan berhasil dikirim!", "success");
+          }
+        }}
+      />
     </div>
   );
 }

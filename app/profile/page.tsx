@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Award,
   Calendar,
@@ -716,21 +717,15 @@ function BookmarkSection({
 // ─── Points Section ───────────────────────────────────────────────────────
 
 function PointsSection({ username }: { username: string }) {
-  const [data, setData] = useState<PointsLogsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLoading(true);
-    fetch(`/api/points-logs/user/${username}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Gagal memuat histori point.");
-        return res.json();
-      })
-      .then((d) => setData(d))
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [username]);
+  const { data, isLoading: loading, isError, error } = useQuery<PointsLogsResponse, Error>({
+    queryKey: ["points-logs", username],
+    queryFn: async () => {
+      const res = await fetch(`/api/points-logs/user/${username}`);
+      if (!res.ok) throw new Error("Gagal memuat histori point.");
+      return res.json();
+    },
+    staleTime: 60 * 1000, // cache for 1 minute
+  });
 
   if (loading) {
     return (
@@ -741,10 +736,10 @@ function PointsSection({ username }: { username: string }) {
     );
   }
 
-  if (error || !data) {
+  if (isError || !data) {
     return (
       <p className="text-xs text-red-500 italic py-6 text-center">
-        {error ?? "Gagal memuat histori point."}
+        {error?.message ?? "Gagal memuat histori point."}
       </p>
     );
   }

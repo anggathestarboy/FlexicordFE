@@ -540,6 +540,10 @@ export default function ProfilePage() {
   }, [followError]);
 
   const handleFollow = async () => {
+    if (!currentUsername) {
+      router.push("/login");
+      return;
+    }
     if (!username || isFollowLoading) return;
 
     // Optimistic update

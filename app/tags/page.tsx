@@ -5,6 +5,8 @@ import { Hash, TrendingUp, Search, Plus, Calendar, Pencil, Trash2, X, Loader2, S
 import { useApp } from "@/context/AppContext";
 import { Tag } from "../api/tags/TagType";
 import axios from "axios";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 
 // Standard preset colors for tags
 const COLOR_PRESETS = [
@@ -138,8 +140,6 @@ export default function TagsPage() {
   // Form states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
-  const [formName, setFormName] = useState("");
-  const [formColor, setFormColor] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -179,6 +179,57 @@ export default function TagsPage() {
     fetchTags();
   }, []);
 
+  const tagValidationSchema = Yup.object({
+    name: Yup.string()
+      .required("Nama tag wajib diisi.")
+      .max(255, "Nama tag maksimal 255 karakter."),
+    color: Yup.string()
+      .required("Warna tag wajib diisi.")
+      .matches(/^#[0-9a-fA-F]{6}$/, "Format warna tidak valid (harus hex #RRGGBB)."),
+  });
+
+  const formik = useFormik({
+    initialValues: {
+      name: "",
+      color: "#3b82f6",
+    },
+    validationSchema: tagValidationSchema,
+    onSubmit: async (values) => {
+      setSubmitting(true);
+      setValidationError(null);
+
+      const payload = {
+        name: values.name.trim(),
+        color: values.color.trim() || null,
+      };
+
+      try {
+        let res;
+        if (editingTag) {
+          res = await axios.put(`/api/tags/${editingTag.slug}`, payload, {
+            headers: { "Content-Type": "application/json" },
+          });
+          showNotification("Tag berhasil diperbarui!", "success");
+        } else {
+          res = await axios.post("/api/tags", payload, {
+            headers: { "Content-Type": "application/json" },
+          });
+          showNotification("Tag baru berhasil ditambahkan!", "success");
+        }
+
+        setIsModalOpen(false);
+        fetchTags();
+      } catch (err: any) {
+        console.error(err);
+        setValidationError(
+          err.response?.data?.message || "Terjadi kesalahan saat menyimpan tag."
+        );
+      } finally {
+        setSubmitting(false);
+      }
+    }
+  });
+
   // Filter tags by search query
   const filteredTags = tags.filter(
     (tag) =>
@@ -191,8 +242,10 @@ export default function TagsPage() {
   // Open Create Modal
   const openCreateModal = () => {
     setEditingTag(null);
-    setFormName("");
-    setFormColor("#3b82f6"); // Default standard blue
+    formik.setValues({
+      name: "",
+      color: "#3b82f6",
+    });
     setValidationError(null);
     setIsModalOpen(true);
   };
@@ -200,8 +253,10 @@ export default function TagsPage() {
   // Open Edit Modal
   const openEditModal = (tag: Tag) => {
     setEditingTag(tag);
-    setFormName(tag.name);
-    setFormColor(tag.color || "#3b82f6");
+    formik.setValues({
+      name: tag.name,
+      color: tag.color || "#3b82f6",
+    });
     setValidationError(null);
     setIsModalOpen(true);
   };
@@ -210,48 +265,6 @@ export default function TagsPage() {
   const openDeleteModal = (tag: Tag) => {
     setDeletingTag(tag);
     setIsConfirmOpen(true);
-  };
-
-  // Submit Modal Form (Create / Edit)
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formName.trim()) {
-      setValidationError("Nama tag wajib diisi.");
-      return;
-    }
-
-    setSubmitting(true);
-    setValidationError(null);
-
-    const payload = {
-      name: formName.trim(),
-      color: formColor.trim() || null,
-    };
-
-    try {
-      let res;
-      if (editingTag) {
-        res = await axios.put(`/api/tags/${editingTag.slug}`, payload, {
-          headers: { "Content-Type": "application/json" },
-        });
-        showNotification("Tag berhasil diperbarui!", "success");
-      } else {
-        res = await axios.post("/api/tags", payload, {
-          headers: { "Content-Type": "application/json" },
-        });
-        showNotification("Tag baru berhasil ditambahkan!", "success");
-      }
-
-      setIsModalOpen(false);
-      fetchTags();
-    } catch (err: any) {
-      console.error(err);
-      setValidationError(
-        err.response?.data?.message || "Terjadi kesalahan saat menyimpan tag."
-      );
-    } finally {
-      setSubmitting(false);
-    }
   };
 
   // Confirm Delete Action
@@ -419,7 +432,7 @@ export default function TagsPage() {
             </div>
 
             {/* Modal Body / Form */}
-            <form onSubmit={handleFormSubmit} className="p-6 space-y-4 text-left">
+            <form onSubmit={formik.handleSubmit} className="p-6 space-y-4 text-left">
               {validationError && (
                 <div className="p-3 text-xs bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg flex items-center gap-2">
                   <span className="font-extrabold">⚠️</span>
@@ -434,57 +447,68 @@ export default function TagsPage() {
                 </label>
                 <input
                   type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
+                  name="name"
+                  value={formik.values.name}
+                  onChange={formik.handleChange}
                   placeholder="Cth: ReactJS, Tren, Humor"
                   className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-zinc-250 dark:border-zinc-850 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
                   maxLength={255}
-                  required
                 />
+                {formik.touched.name && formik.errors.name && (
+                  <div className="text-red-500 text-[11px] font-semibold mt-1">
+                    {formik.errors.name}
+                  </div>
+                )}
               </div>
 
               {/* Color Preset Palette Selection */}
               <div>
                 <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                  Pilih Warna Label
+                  Pilih Warna Label <span className="text-red-500">*</span>
                 </label>
                 
                 {/* Custom input with preset preview */}
                 <div className="flex gap-2 items-center mb-3">
                   <div 
                     className="w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-800 transition-all shrink-0" 
-                    style={{ backgroundColor: formColor }}
+                    style={{ backgroundColor: formik.values.color }}
                   />
                   <input
                     type="text"
-                    value={formColor}
-                    onChange={(e) => setFormColor(e.target.value)}
+                    name="color"
+                    value={formik.values.color}
+                    onChange={formik.handleChange}
                     placeholder="Hex Code: Cth #ef4444"
                     className="flex-1 text-xs px-3 py-2 rounded-lg border border-zinc-250 dark:border-zinc-850 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all font-mono"
                   />
                   {/* Hex Picker Box native */}
                   <input 
                     type="color" 
-                    value={formColor.startsWith("#") && formColor.length === 7 ? formColor : "#3b82f6"}
-                    onChange={(e) => setFormColor(e.target.value)}
+                    value={formik.values.color.startsWith("#") && formik.values.color.length === 7 ? formik.values.color : "#3b82f6"}
+                    onChange={(e) => formik.setFieldValue("color", e.target.value)}
                     className="w-8 h-8 p-0 border-0 bg-transparent cursor-pointer shrink-0"
                   />
                 </div>
+                {formik.touched.color && formik.errors.color && (
+                  <div className="text-red-500 text-[11px] font-semibold mb-3">
+                    {formik.errors.color}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-8 gap-2">
                   {COLOR_PRESETS.map((preset) => (
                     <button
                       key={preset.value}
                       type="button"
-                      onClick={() => setFormColor(preset.value)}
+                      onClick={() => formik.setFieldValue("color", preset.value)}
                       title={preset.name}
                       className={`w-full aspect-square rounded-full cursor-pointer transition-all hover:scale-110 flex items-center justify-center ${preset.bg} ${
-                        formColor.toLowerCase() === preset.value.toLowerCase()
+                        formik.values.color.toLowerCase() === preset.value.toLowerCase()
                           ? "ring-2 ring-cyan-500 ring-offset-2 dark:ring-offset-zinc-900"
                           : ""
                       }`}
                     >
-                      {formColor.toLowerCase() === preset.value.toLowerCase() && (
+                      {formik.values.color.toLowerCase() === preset.value.toLowerCase() && (
                         <span className="text-[10px] text-white font-bold font-sans">✓</span>
                       )}
                     </button>
