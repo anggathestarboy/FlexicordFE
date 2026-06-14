@@ -2,7 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { PostHistoriesApiResponse } from "./PostHistoriesType";
 
-const BASE_URL = "https://pegaduanmasyarakat.alwaysdata.net/api";
+
+import axios from "axios";
+
+// Helper fetch wrapper implemented with axios for backward compatibility
+const fetch = async (url: string, options: any = {}) => {
+  const response = await axios({
+    url,
+    method: options.method || "GET",
+    headers: options.headers,
+    data: options.body ? JSON.parse(options.body) : undefined,
+    validateStatus: () => true
+  });
+  return {
+    status: response.status,
+    ok: response.status >= 200 && response.status < 300,
+    json: async () => response.data,
+    text: async () => typeof response.data === 'string' ? response.data : JSON.stringify(response.data)
+  };
+};
+
+const BASE_URL = `${process.env.NEXT_PUBLIC_BASE_URL}`;
 
 export async function GET(
   request: NextRequest,

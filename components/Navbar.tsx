@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import { MessageSquare, Search, Award, Plus, ArrowLeft, LogOut, Bell } from 'lucide-react';
 import { User, ViewType } from '@/lib/types';
 import ThemeToggle from './ThemeToggle';
@@ -50,9 +51,9 @@ export default function Navbar({
     setIsLoading(true);
     const delayDebounce = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search-user?search=${encodeURIComponent(searchVal)}`);
-        if (res.ok) {
-          const data = await res.json();
+        const res = await axios.get(`/api/search-user?search=${encodeURIComponent(searchVal)}`);
+        if (res.status === 200) {
+          const data = res.data;
           setResults(data.users || []);
         } else {
           setResults([]);
@@ -97,9 +98,9 @@ export default function Navbar({
   const { data: notificationsData } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
-      const response = await fetch('/api/notifications');
-      if (!response.ok) throw new Error('Failed to fetch notifications');
-      return response.json();
+      const response = await axios.get('/api/notifications');
+      if (response.status !== 200) throw new Error('Failed to fetch notifications');
+      return response.data;
     },
     enabled: !!currentUser,
     refetchInterval: 30000,

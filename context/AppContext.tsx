@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import axios from 'axios';
 import { Question, User, Answer, Comment, ViewType } from '@/lib/types';
 import { MOCK_QUESTIONS } from '@/lib/data';
 
@@ -37,9 +38,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const checkUserAuth = async () => {
     try {
-      const res = await fetch('/api/me');
-      if (res.ok) {
-        const data = await res.json();
+      const res = await axios.get('/api/me');
+      if (res.status === 200) {
+        const data = res.data;
         if (data.user) {
           setCurrentUser(data.user);
         } else {

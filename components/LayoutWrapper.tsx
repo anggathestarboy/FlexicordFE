@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import RightSidebar from './RightSidebar';
+import MobileBottomBar from './MobileBottomBar';
 import { useApp } from '@/context/AppContext';
 import { POPULAR_TAGS } from '@/lib/data';
 import { Sparkles } from 'lucide-react';
@@ -48,7 +49,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         onLogout={() => {}} // Handled in Navbar
       />
 
-      <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 lg:pb-8">
         {isAuthPage ? (
           <div className="max-w-5xl mx-auto py-2">
             {children}
@@ -57,7 +58,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           <div className="flex flex-col lg:flex-row gap-6 sm:gap-8">
             <Sidebar
               currentView={pathname === '/' ? 'home' : (pathname.substring(1) as any)}
-              setView={() => {}} // Handled by Next.js navigation
+              setView={() => {}} // This will be handled by Next.js navigation
               currentUser={currentUser || null}
               selectedTag={selectedTag}
               setSelectedTag={setSelectedTag}
@@ -75,6 +76,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           </div>
         )}
       </div>
+      {!isAuthPage && <MobileBottomBar />}
     </div>
   );
 }
