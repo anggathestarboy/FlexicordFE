@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { Folder, FolderOpen, ChevronRight, ChevronDown, Layers, Hash, Pencil, Trash2, Plus, X, Loader2, Sparkles } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { Category, CategoryChild } from "../../api/categories/CategoryType";
@@ -144,11 +147,16 @@ function CategoryCard({
 }
 
 // ── Main Page Component ──────────────────────────────────────────────────────
+const categoryValidationSchema = Yup.object({
+  name: Yup.string()
+    .required("Nama kategori wajib diisi.")
+    .max(255, "Nama kategori maksimal 255 karakter."),
+  description: Yup.string().nullable(),
+  parent_id: Yup.string().nullable(),
+});
+
 export default function CategoriesPage() {
   const { currentUser, showNotification } = useApp();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Admin / Moderator States
@@ -156,10 +164,7 @@ export default function CategoriesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | CategoryChild | null>(null);
 
-  // Form States
-  const [formName, setFormName] = useState("");
-  const [formDescription, setFormDescription] = useState("");
-  const [formParentId, setFormParentId] = useState("");
+  // UI / Action states
   const [submitting, setSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -173,26 +178,89 @@ export default function CategoriesPage() {
     currentUser?.primary_role?.name === "admin" ||
     currentUser?.primary_role?.name === "moderator";
 
-  const fetchCategoriesList = () => {
-    setLoading(true);
-    fetch("/api/categories")
-      .then((r) => r.json())
-      .then((res) => {
-        if (res.data) {
-          setCategories(res.data);
-        } else if (Array.isArray(res)) {
-          setCategories(res);
-        } else {
-          setError("Gagal memuat data kategori.");
-        }
-      })
-      .catch(() => setError("Terjadi kesalahan koneksi."))
-      .finally(() => setLoading(false));
-  };
+  const { data: categoriesData, isLoading: loading, error: queryError, refetch } = useQuery<Category[], Error>({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/categories");
+      if (!res.ok) throw new Error("Gagal memuat data kategori.");
+      const resData = await res.json();
+      if (resData.data) return resData.data;
+      if (Array.isArray(resData)) return resData;
+      throw new Error("Gagal memuat data kategori.");
+    },
+  });
 
-  useEffect(() => {
-    fetchCategoriesList();
-  }, []);
+  const categories = categoriesData || [];
+  const error = queryError ? queryError.message : null;
+
+  const formik = useFormik({
+    initialValues: {
+      name: "",
+      description: "",
+      parent_id: "",
+    },
+    validationSchema: categoryValidationSchema,
+    onSubmit: async (values) => {
+      setSubmitting(true);
+      setValidationError(null);
+
+      const payload = {
+        name: values.name.trim(),
+        description: values.description.trim() || null,
+        parent_id: values.parent_id || null,
+      };
+
+      try {
+        let res;
+        if (editingCategory) {
+          // Edit mode (PUT)
+          res = await axios.put(`/api/categories/${editingCategory.slug}`, payload, {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+        } else {
+          // Create mode (POST)
+          res = await axios.post("/api/categories", payload, {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+        }
+
+        if (res.status === 200 || res.status === 201 || res.data?.success) {
+          showNotification(
+            editingCategory
+              ? `Kategori "${values.name}" berhasil diperbarui!`
+              : `Kategori "${values.name}" berhasil dibuat!`,
+            "success"
+          );
+          setIsModalOpen(false);
+          refetch();
+        } else {
+          setValidationError(res.data?.message || "Gagal menyimpan kategori.");
+        }
+      } catch (err: any) {
+        console.error(err);
+        let errorMsg = "Terjadi kesalahan server saat menyimpan kategori.";
+        if (err.response?.data) {
+          if (err.response.data.errors) {
+            const detailedErrors = Object.values(err.response.data.errors).flat();
+            if (detailedErrors.length > 0) {
+              errorMsg = detailedErrors.join(" • ");
+            } else {
+              errorMsg = err.response.data.message || errorMsg;
+            }
+          } else {
+            errorMsg = err.response.data.message || errorMsg;
+          }
+        }
+        setValidationError(errorMsg);
+      } finally {
+        setSubmitting(false);
+      }
+    }
+  });
 
   // Filter categories by search query
   const filteredCategories = categories.filter(
@@ -207,18 +275,22 @@ export default function CategoriesPage() {
   // Handlers for modals
   const handleEditMainClick = (category: Category) => {
     setEditingCategory(category);
-    setFormName(category.name);
-    setFormDescription(category.description || "");
-    setFormParentId("");
+    formik.setValues({
+      name: category.name,
+      description: category.description || "",
+      parent_id: "",
+    });
     setValidationError(null);
     setIsModalOpen(true);
   };
 
   const handleEditChildClick = (child: CategoryChild) => {
     setEditingCategory(child);
-    setFormName(child.name);
-    setFormDescription(child.description || "");
-    setFormParentId(child.parent_id || "");
+    formik.setValues({
+      name: child.name,
+      description: child.description || "",
+      parent_id: child.parent_id || "",
+    });
     setValidationError(null);
     setIsModalOpen(true);
   };
@@ -240,7 +312,7 @@ export default function CategoriesPage() {
       const res = await axios.delete(`/api/categories/${deletingCategory.slug}`);
       if (res.status === 200 || res.data?.success) {
         showNotification(`Kategori "${deletingCategory.name}" berhasil dihapus!`, "success");
-        fetchCategoriesList();
+        refetch();
       } else {
         showNotification(res.data?.message || "Gagal menghapus kategori.", "info");
       }
@@ -254,73 +326,6 @@ export default function CategoriesPage() {
       setDeleting(false);
       setIsConfirmOpen(false);
       setDeletingCategory(null);
-    }
-  };
-
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formName.trim()) {
-      setValidationError("Nama kategori wajib diisi.");
-      return;
-    }
-
-    setSubmitting(true);
-    setValidationError(null);
-
-    const payload = {
-      name: formName.trim(),
-      description: formDescription.trim() || null,
-      parent_id: formParentId || null,
-    };
-
-    try {
-      let res;
-      if (editingCategory) {
-        // Edit mode (PUT)
-        res = await axios.put(`/api/categories/${editingCategory.slug}`, payload, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-      } else {
-        // Create mode (POST)
-        res = await axios.post("/api/categories", payload, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-      }
-
-      if (res.status === 200 || res.status === 201 || res.data?.success) {
-        showNotification(
-          editingCategory
-            ? `Kategori "${formName}" berhasil diperbarui!`
-            : `Kategori "${formName}" berhasil dibuat!`,
-          "success"
-        );
-        setIsModalOpen(false);
-        fetchCategoriesList();
-      } else {
-        setValidationError(res.data?.message || "Gagal menyimpan kategori.");
-      }
-    } catch (err: any) {
-      console.error(err);
-      let errorMsg = "Terjadi kesalahan server saat menyimpan kategori.";
-      if (err.response?.data) {
-        if (err.response.data.errors) {
-          const detailedErrors = Object.values(err.response.data.errors).flat();
-          if (detailedErrors.length > 0) {
-            errorMsg = detailedErrors.join(" • ");
-          } else {
-            errorMsg = err.response.data.message || errorMsg;
-          }
-        } else {
-          errorMsg = err.response.data.message || errorMsg;
-        }
-      }
-      setValidationError(errorMsg);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -379,9 +384,7 @@ export default function CategoriesPage() {
             <button
               onClick={() => {
                 setEditingCategory(null);
-                setFormName("");
-                setFormDescription("");
-                setFormParentId("");
+                formik.resetForm();
                 setValidationError(null);
                 setIsModalOpen(true);
               }}
@@ -442,7 +445,7 @@ export default function CategoriesPage() {
             </div>
 
             {/* Modal Body */}
-            <form onSubmit={handleFormSubmit} className="p-6 space-y-4 text-left max-h-[75vh] overflow-y-auto">
+            <form onSubmit={formik.handleSubmit} className="p-6 space-y-4 text-left max-h-[75vh] overflow-y-auto">
               {validationError && (
                 <div className="p-3 text-xs bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg flex items-center gap-2">
                   <span className="font-extrabold">⚠️</span>
@@ -457,12 +460,17 @@ export default function CategoriesPage() {
                 </label>
                 <input
                   type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
+                  name="name"
+                  value={formik.values.name}
+                  onChange={formik.handleChange}
                   placeholder="Cth: Framework & Library"
                   className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-zinc-250 dark:border-zinc-850 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
-                  required
                 />
+                {formik.touched.name && formik.errors.name && (
+                  <div className="text-red-500 text-[11px] font-semibold mt-1">
+                    {formik.errors.name}
+                  </div>
+                )}
               </div>
 
               {/* Description */}
@@ -472,8 +480,9 @@ export default function CategoriesPage() {
                 </label>
                 <textarea
                   rows={3}
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
+                  name="description"
+                  value={formik.values.description}
+                  onChange={formik.handleChange}
                   placeholder="Tuliskan deskripsi singkat kategori..."
                   className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-zinc-250 dark:border-zinc-850 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
                 />
@@ -485,8 +494,9 @@ export default function CategoriesPage() {
                   Kategori Induk (Pilih jika sub-kategori)
                 </label>
                 <select
-                  value={formParentId}
-                  onChange={(e) => setFormParentId(e.target.value)}
+                  name="parent_id"
+                  value={formik.values.parent_id}
+                  onChange={formik.handleChange}
                   className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-zinc-250 dark:border-zinc-850 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all font-semibold"
                 >
                   <option value="">-- Tanpa Induk (Kategori Utama) --</option>

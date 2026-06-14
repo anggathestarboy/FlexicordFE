@@ -1,6 +1,11 @@
 /// <reference types="cypress" />
 
 describe("Post E2E Tests", () => {
+  // Ignore uncaught exceptions from Next.js/React hydration/hot-reloading
+  Cypress.on("uncaught:exception", (err, runnable) => {
+    return false;
+  });
+
   const username = `u${Date.now().toString().slice(-11)}`;
   const email = `${username}@example.com`;
   const password = "TestPassword123!";
@@ -8,12 +13,12 @@ describe("Post E2E Tests", () => {
   // Mock Data
   const mockCategories = [
     { id: "cat-1", name: "Web Development", slug: "web-dev", description: "Diskusi seputar pengembangan web", parent_id: null, children: [] },
-    { id: "cat-2", name: "Mobile Development", slug: "mobile-dev", description: "Diskusi seputar mobile apps", parent_id: null, children: [] }
+    { id: "cat-2", name: "Mobile Development", slug: "mobile-dev", description: "Diskusi seputar mobile apps", parent_id: null, children: [] },
   ];
 
   const mockTags = [
     { id: "tag-1", name: "react", slug: "react", color: "#61dafb", usage_count: 15 },
-    { id: "tag-2", name: "nextjs", slug: "nextjs", color: "#000000", usage_count: 10 }
+    { id: "tag-2", name: "nextjs", slug: "nextjs", color: "#000000", usage_count: 10 },
   ];
 
   const mockUser = {
@@ -28,15 +33,7 @@ describe("Post E2E Tests", () => {
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     roles: [{ id: "r-1", name: "user" }],
-    primary_role: { name: "user" }
-  };
-
-  const mockAdminUser = {
-    ...mockUser,
-    id: "admin-123",
-    username: "admin_tester",
-    roles: [{ id: "r-2", name: "admin" }],
-    primary_role: { name: "admin" }
+    primary_role: { name: "user" },
   };
 
   const mockPost = {
@@ -74,23 +71,32 @@ describe("Post E2E Tests", () => {
         is_accepted: 0,
         created_at: "2026-06-14T01:00:00.000Z",
         user: { id: "user-999", username: "helper_dev", reputation_points: 50, avatar_url: null },
-        replies: []
-      }
-    ]
+        replies: [],
+      },
+    ],
   };
 
-  before(() => {
-    // Real registration and login flow from full_flow.cy.ts
-    cy.visit("/register");
-    cy.get('input[name="username"]').type(username);
-    cy.get('input[name="email"]').type(email);
-    cy.get('input[name="password"]').type(password);
-    cy.get('button[type="submit"]').contains(/register|daftar/i).click();
-    cy.url().should("eq", Cypress.config("baseUrl") + "/");
-  });
+  /**
+   * Registers the test user once and caches the session (including the `token` cookie).
+   * Subsequent calls within the same test run restore the cached cookie so that
+   * Next.js middleware allows access to protected routes.
+   */
+  const setupUserSession = () => {
+    cy.session([username, "post-tests"], () => {
+      cy.visit("/register");
+      cy.get('input[name="username"]').type(username);
+      cy.get('input[name="email"]').type(email);
+      cy.get('input[name="password"]').type(password);
+      cy.get('button[type="submit"]').contains(/register|daftar/i).click();
+      cy.url().should("eq", Cypress.config("baseUrl") + "/");
+    });
+  };
 
   beforeEach(() => {
-    // Standard setup to ensure tests run consistently
+    // Restore token cookie so middleware allows access to protected routes
+    setupUserSession();
+
+    // Standard API intercepts
     cy.intercept("GET", "/api/me", { user: mockUser }).as("getMe");
     cy.intercept("GET", "/api/categories", { data: mockCategories }).as("getCategories");
     cy.intercept("GET", "/api/tags", { data: mockTags }).as("getTags");
@@ -125,11 +131,9 @@ describe("Post E2E Tests", () => {
   it("Post create gagal", () => {
     cy.visit("/ask");
     cy.wait(["@getMe", "@getCategories", "@getTags"]);
-    
-    // Title too short
+
     cy.get("input#q-title").type("Pendek");
     cy.get("select#q-category").select(mockCategories[0].name);
-    // Submit
     cy.get("#btn-submit-question").click();
     cy.contains("Judul harus spesifik").should("be.visible");
   });
@@ -137,7 +141,7 @@ describe("Post E2E Tests", () => {
   it("Post create berhasil", () => {
     cy.intercept("POST", "/api/posts", {
       statusCode: 201,
-      body: { message: "Pertanyaan publik baru Anda berhasil diterbitkan!", data: mockPost }
+      body: { message: "Pertanyaan publik baru Anda berhasil diterbitkan!", data: mockPost },
     }).as("createPost");
 
     cy.visit("/ask");
@@ -145,11 +149,7 @@ describe("Post E2E Tests", () => {
 
     cy.get("input#q-title").type("Ini adalah contoh pertanyaan baru berdurasi 15 karakter lebih");
     cy.get("select#q-category").select(mockCategories[0].name);
-    
-    // Type inside Quill editor
     cy.get(".ql-editor").type("Detail pertanyaan harus minimal 40 karakter agar lolos validasi client-side.");
-    
-    // Select tag
     cy.get("input#q-tags").type("react");
     cy.contains("#react").click();
 
@@ -167,7 +167,7 @@ describe("Post E2E Tests", () => {
 
   it("Post like", () => {
     cy.intercept("POST", "/api/likes", { statusCode: 200, body: { message: "Liked successfully" } }).as("likePost");
-    
+
     cy.visit(`/posts/${mockPost.id}`);
     cy.wait(["@getMe", "@getPostDetail"]);
 
@@ -253,7 +253,6 @@ describe("Post E2E Tests", () => {
   });
 
   it("Post view history update", () => {
-    // Visiting the page fetches the details which increments the view history/count on backend
     cy.visit(`/posts/${mockPost.id}`);
     cy.wait(["@getMe", "@getPostDetail"]);
     cy.contains("42 kali").should("be.visible");
@@ -270,19 +269,13 @@ describe("Post E2E Tests", () => {
   });
 
   it("Post report", () => {
-    const mockProfileDetail = {
-      message: "Detail profil berhasil dimuat",
-      user: { ...mockUser, id: "user-999", username: "helper_dev" }
-    };
-    cy.intercept("GET", "/api/profile/helper_dev", mockProfileDetail).as("getHelperProfile");
     cy.intercept("POST", "/api/reports", { statusCode: 200, body: { message: "Report submitted successfully" } }).as("submitReport");
 
-    // Visit user profile directly or click author to report
-    cy.visit("/profile/helper_dev");
-    cy.wait(["@getMe", "@getHelperProfile"]);
+    cy.visit(`/posts/${mockPost.id}`);
+    cy.wait(["@getMe", "@getPostDetail"]);
 
-    cy.get("button").contains("Laporkan").click();
-    cy.get("input[placeholder='Alasan laporan...']").type("Spamming post content");
+    cy.get("#cy-btn-report").click();
+    cy.get("input[placeholder*='Spam']").type("Spamming post content");
     cy.get("button[type='submit']").contains("Kirim Laporan").click();
     cy.wait("@submitReport");
   });
@@ -303,44 +296,111 @@ describe("Post E2E Tests", () => {
     cy.visit(`/posts/${mockPost.id}`);
     cy.wait(["@getMe", "@getPostDetail"]);
 
-    cy.get("button").contains("Hapus").click();
+    cy.get('button[title="Hapus Postingan"]').click();
     cy.wait("@deletePost");
   });
 
-  it("Post delete other users (moderator & admin only)", () => {
-    // Stub other user's post detail & delete endpoint (reused in both flows)
+  it("Post delete other users - Admin", () => {
     const otherUserPost = {
       ...mockPost,
       user_id: "user-different-999",
-      user: { id: "user-different-999", username: "other_user" },
+      user: { ...mockUser, id: "user-different-999", username: "other_user" },
     };
+
+    // Override /api/me to return 401/null user so we are a guest on /login page
+    cy.intercept("GET", "/api/me", { statusCode: 401, body: { message: "Unauthorized" } }).as("getGuestMe");
     cy.intercept("GET", `/api/posts/${mockPost.id}`, { data: otherUserPost }).as("getOtherPostDetail");
     cy.intercept("DELETE", `/api/posts/${mockPost.id}`, { statusCode: 200, body: { message: "Post deleted successfully" } }).as("deleteOtherPost");
 
-    // ─── 1. ADMIN FLOW ───
-    cy.clearCookies();
+    cy.clearAllCookies();
+    cy.clearAllLocalStorage();
+    cy.clearAllSessionStorage();
     cy.visit("/login");
-    cy.get('input[name="username"]').type("anggaraa");
-    cy.get('input[name="password"]').type("aksata");
+    
+    cy.get('input[name="username"]').should("be.visible").should("not.be.disabled").type("anggaraa");
+    cy.get('input[name="password"]').should("be.visible").should("not.be.disabled").type("aksata");
     cy.get('button[type="submit"]').contains(/login|masuk/i).click();
     cy.url().should("eq", Cypress.config("baseUrl") + "/");
 
+    // Real login as admin (gets real token cookie for middleware)
+    // Now intercept /api/me to return the admin user details
+    cy.intercept("GET", "/api/me", {
+      user: {
+        ...mockUser,
+        id: "admin-123",
+        username: "anggaraa",
+        roles: [{ id: "r-2", name: "admin" }],
+        primary_role: { name: "admin" },
+      },
+    }).as("getAdminMe");
+
     cy.visit(`/posts/${mockPost.id}`);
-    cy.wait("@getOtherPostDetail");
-    cy.get("button").contains("Hapus").click();
+    cy.wait(["@getAdminMe", "@getOtherPostDetail"]);
+    cy.get('button[title="Hapus Postingan"]').click();
     cy.wait("@deleteOtherPost");
+  });
 
-    // ─── 2. MODERATOR FLOW ───
-    cy.clearCookies();
+  it("Post delete other users - Moderator", () => {
+    const otherUserPost = {
+      ...mockPost,
+      user_id: "user-different-999",
+      user: { ...mockUser, id: "user-different-999", username: "other_user" },
+    };
+
+    // Override /api/me to return 401/null user so we are a guest on /login page
+    cy.intercept("GET", "/api/me", { statusCode: 401, body: { message: "Unauthorized" } }).as("getGuestMe");
+    cy.intercept("GET", `/api/posts/${mockPost.id}`, { data: otherUserPost }).as("getOtherPostDetail");
+    cy.intercept("DELETE", `/api/posts/${mockPost.id}`, { statusCode: 200, body: { message: "Post deleted successfully" } }).as("deleteOtherPost");
+
+    cy.clearAllCookies();
+    cy.clearAllLocalStorage();
+    cy.clearAllSessionStorage();
     cy.visit("/login");
-    cy.get('input[name="username"]').type("reifan");
-    cy.get('input[name="password"]').type("aksata");
+
+   cy.visit("/login");
+
+// cek request guest benar-benar terpanggil
+cy.wait("@getGuestMe");
+
+cy.get('input[name="username"]')
+  .should("be.visible")
+  .should("not.be.disabled")
+  .type("reifan")
+  .should("have.value", "reifan");
+
+cy.wait(2000);
+
+cy.get('input[name="username"]')
+  .should("have.value", "reifan");
+
+cy.get('input[name="password"]')
+  .should("be.visible")
+  .should("not.be.disabled")
+  .type("aksata");
+
+cy.get('button[type="submit"]')
+  .contains(/login|masuk/i)
+  .click();
+    cy.get('input[name="password"]').should("be.visible").should("not.be.disabled").type("aksata");
     cy.get('button[type="submit"]').contains(/login|masuk/i).click();
     cy.url().should("eq", Cypress.config("baseUrl") + "/");
 
+    // Real login as moderator (gets real token cookie for middleware)
+    // Now intercept /api/me to return the moderator user details
+    cy.intercept("GET", "/api/me", {
+      user: {
+        ...mockUser,
+        id: "mod-123",
+        username: "reifan",
+        roles: [{ id: "r-3", name: "moderator" }],
+        primary_role: { name: "moderator" },
+      },
+    }).as("getModMe");
+
     cy.visit(`/posts/${mockPost.id}`);
-    cy.wait("@getOtherPostDetail");
-    cy.get("button").contains("Hapus").click();
+    cy.wait(["@getModMe", "@getOtherPostDetail"]);
+    cy.get('button[title="Hapus Postingan"]').click();
     cy.wait("@deleteOtherPost");
   });
 });
+

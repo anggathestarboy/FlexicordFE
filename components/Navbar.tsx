@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Search, Award, Plus, ArrowLeft, LogOut, Bell } from 'lucide-react';
 import { User, ViewType } from '@/lib/types';
 import ThemeToggle from './ThemeToggle';
@@ -30,6 +31,68 @@ export default function Navbar({
 }: NavbarProps) {
   const router = useRouter();
   const pathname = usePathname();
+
+  const [searchVal, setSearchVal] = useState("");
+  const [results, setResults] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const desktopSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!searchVal.trim()) {
+      setResults([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search-user?search=${encodeURIComponent(searchVal)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setResults(data.users || []);
+        } else {
+          setResults([]);
+        }
+      } catch (err) {
+        console.error("Gagal melakukan pencarian user:", err);
+        setResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchVal]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const isInsideDesktop = desktopSearchRef.current?.contains(target);
+      const isInsideMobile = mobileSearchRef.current?.contains(target);
+      if (!isInsideDesktop && !isInsideMobile) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleUserClick = (username: string) => {
+    setSearchVal("");
+    setIsOpen(false);
+    router.push(`/profile/${username}`);
+  };
+
+  const getAvatarUrl = (avatarUrl: string | null | undefined) => {
+    if (!avatarUrl) return null;
+    return avatarUrl.startsWith('http')
+      ? avatarUrl
+      : `https://pegaduanmasyarakat.alwaysdata.net/storage/${avatarUrl}`;
+  };
 
   const { data: notificationsData } = useQuery({
     queryKey: ['notifications'],
@@ -77,7 +140,7 @@ export default function Navbar({
         </Link>
 
         {/* Global Search Bar */}
-        <div className="hidden md:flex flex-1 max-w-2xl relative">
+        <div ref={desktopSearchRef} className="hidden md:flex flex-1 max-w-2xl relative">
           <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
             <Search className="h-4 w-4 text-zinc-400" />
           </div>
@@ -85,10 +148,65 @@ export default function Navbar({
             id="nav-search-input"
             type="text"
             placeholder="cari username.."
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            value={searchVal}
+            onChange={(e) => {
+              setSearchVal(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
             className="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-blue/50 focus:border-brand-blue dark:focus:border-brand-blue transition-all duration-150"
           />
+
+          {isOpen && searchVal.trim().length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 max-h-80 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-lg z-50 py-1">
+              {isLoading ? (
+                <div className="px-4 py-3 text-xs text-zinc-500 dark:text-zinc-400 flex items-center justify-center gap-2">
+                  <span className="animate-spin h-3.5 w-3.5 border-2 border-brand-blue border-t-transparent rounded-full" />
+                  <span>Mencari user...</span>
+                </div>
+              ) : results.length > 0 ? (
+                results.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => handleUserClick(user.username)}
+                    className="w-full text-left px-4 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900 flex items-center gap-3 transition-colors border-none outline-none focus:bg-zinc-50 dark:focus:bg-zinc-900 cursor-pointer"
+                  >
+                    {user.avatar_url ? (
+                      <img
+                        src={getAvatarUrl(user.avatar_url)!}
+                        alt={user.username}
+                        className="h-8 w-8 rounded-full object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                        {user.username ? user.username.charAt(0) : '?'}
+                      </div>
+                    )}
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-zinc-900 dark:text-white truncate">
+                          {user.username}
+                        </span>
+                        <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-0.5 shrink-0">
+                          <Award className="h-3 w-3 text-brand-blue" />
+                          {(user.reputation_points ?? user.reputation ?? 0).toLocaleString()}
+                        </span>
+                      </div>
+                      {user.bio && (
+                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate max-w-[350px]">
+                          {user.bio}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="px-4 py-3 text-xs text-zinc-500 dark:text-zinc-400 text-center">
+                  User tidak ditemukan
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Actions */}
@@ -175,7 +293,7 @@ export default function Navbar({
       </div>
 
       {/* Mobile Search Bar Expansion */}
-      <div className="block md:hidden border-t border-zinc-100 dark:border-zinc-900 px-4 py-2 bg-zinc-50/50 dark:bg-zinc-950/50">
+      <div ref={mobileSearchRef} className="block md:hidden border-t border-zinc-100 dark:border-zinc-900 px-4 py-2 bg-zinc-50/50 dark:bg-zinc-950/50 relative">
         <div className="relative w-full">
           <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
             <Search className="h-3.5 w-3.5 text-zinc-400" />
@@ -183,12 +301,67 @@ export default function Navbar({
           <input
             id="nav-mobile-search-input"
             type="text"
-            placeholder="Cari pertanyaan atau kendala..."
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="cari username.."
+            value={searchVal}
+            onChange={(e) => {
+              setSearchVal(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
             className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-brand-blue"
           />
         </div>
+
+        {isOpen && searchVal.trim().length > 0 && (
+          <div className="absolute top-full left-4 right-4 mt-1 max-h-60 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-lg z-50 py-1">
+            {isLoading ? (
+              <div className="px-4 py-3 text-xs text-zinc-500 dark:text-zinc-400 flex items-center justify-center gap-2">
+                <span className="animate-spin h-3.5 w-3.5 border-2 border-brand-blue border-t-transparent rounded-full" />
+                <span>Mencari user...</span>
+              </div>
+            ) : results.length > 0 ? (
+              results.map((user) => (
+                <button
+                  key={user.id}
+                  onClick={() => handleUserClick(user.username)}
+                  className="w-full text-left px-4 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900 flex items-center gap-3 transition-colors border-none outline-none focus:bg-zinc-50 dark:focus:bg-zinc-900 cursor-pointer"
+                >
+                  {user.avatar_url ? (
+                    <img
+                      src={getAvatarUrl(user.avatar_url)!}
+                      alt={user.username}
+                      className="h-8 w-8 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                      {user.username ? user.username.charAt(0) : '?'}
+                    </div>
+                  )}
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-zinc-900 dark:text-white truncate">
+                        {user.username}
+                      </span>
+                      <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-0.5 shrink-0">
+                        <Award className="h-3 w-3 text-brand-blue" />
+                        {(user.reputation_points ?? user.reputation ?? 0).toLocaleString()}
+                      </span>
+                    </div>
+                    {user.bio && (
+                      <span className="text-[10px] text-zinc-550 dark:text-zinc-400 truncate max-w-[250px]">
+                        {user.bio}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="px-4 py-3 text-xs text-zinc-500 dark:text-zinc-400 text-center">
+                User tidak ditemukan
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

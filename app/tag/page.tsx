@@ -20,6 +20,7 @@ import {
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { ApiResponse, Post } from "@/lib/types";
 import { Tag as ApiTag } from "../api/tags/TagType";
+import { useApp } from "@/context/AppContext";
 
 const AVATAR_BASE = "https://pegaduanmasyarakat.alwaysdata.net/storage/";
 type UUID = string;
@@ -29,6 +30,7 @@ function TagPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { currentUser } = useApp();
 
   // Tag page states
   const [tags, setTags] = useState<ApiTag[]>([]);
@@ -173,6 +175,10 @@ function TagPageContent() {
 
   const handleLike = async (e: React.MouseEvent, postId: UUID) => {
     e.stopPropagation();
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
 
     const targetPost = posts.find((p) => p.id === postId);
     if (!targetPost) return;
@@ -227,6 +233,10 @@ function TagPageContent() {
 
   const handleBookmark = async (e: React.MouseEvent, postId: UUID) => {
     e.stopPropagation();
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
 
     const targetPost = posts.find((p) => p.id === postId);
     if (!targetPost) return;

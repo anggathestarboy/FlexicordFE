@@ -159,18 +159,27 @@ describe("Profile E2E Tests", () => {
     ]
   };
 
-  before(() => {
-    // Perform standard login using registry
-    cy.visit("/register");
-    cy.get('input[name="username"]').type(username);
-    cy.get('input[name="email"]').type(email);
-    cy.get('input[name="password"]').type(password);
-    cy.get('button[type="submit"]').contains(/register|daftar/i).click();
-    cy.url().should("eq", Cypress.config("baseUrl") + "/");
-  });
+  /**
+   * Registers the test user once and caches the session (including the `token` cookie).
+   * Subsequent calls restore the cached cookie so that Next.js middleware
+   * allows access to protected routes like /profile, /profile/edit, etc.
+   */
+  const setupUserSession = () => {
+    cy.session([username, "profile-tests"], () => {
+      cy.visit("/register");
+      cy.get('input[name="username"]').type(username);
+      cy.get('input[name="email"]').type(email);
+      cy.get('input[name="password"]').type(password);
+      cy.get('button[type="submit"]').contains(/register|daftar/i).click();
+      cy.url().should("eq", Cypress.config("baseUrl") + "/");
+    });
+  };
 
   beforeEach(() => {
-    // Intercept profile and detail APIs
+    // Restore token cookie so middleware allows access to protected routes
+    setupUserSession();
+
+    // Standard API intercepts
     cy.intercept("GET", "/api/me", { user: mockUser }).as("getMe");
     cy.intercept("GET", `/api/profile/${username}`, { message: "Detail profil berhasil dimuat", user: mockUser, is_following: false }).as("getProfileDetail");
     cy.intercept("GET", `/api/profile/otherdev`, { message: "Detail profil berhasil dimuat", user: mockOtherUser, is_following: false }).as("getOtherProfileDetail");

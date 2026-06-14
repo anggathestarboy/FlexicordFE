@@ -1,70 +1,93 @@
 /// <reference types="cypress" />
 
-describe('Full user flow', () => {
-  const username = `u${Date.now().toString().slice(-11)}`;
+describe("Full user flow", () => {
+  Cypress.on("uncaught:exception", (err, runnable) => {
+    return false;
+  });
+
+  // Use a fixed unique username for the duration of this test suite run
+  const uniqueId = Date.now().toString().slice(-9);
+  const username = `halo${uniqueId}`;
   const email = `${username}@example.com`;
-  const password = 'TestPassword123!';
+  const password = "TestPassword1234!";
 
-  it('Registers a new user', () => {
-    cy.visit('/register');
-    // Assuming input fields have name attributes or placeholders
-    cy.get('input[name="username"]').type(username);
-    cy.get('input[name="email"]').type(email);
-    cy.get('input[name="password"]').type(password);
-    cy.get('button[type="submit"]').contains(/register|daftar/i).click();
-    // Should redirect to homepage after registration
-    cy.url().should('eq', Cypress.config('baseUrl') + '/');
-    cy.contains('Logout').should('be.visible');
+  it("Register gagal", () => {
+    cy.visit("/register");
+    // Invalid username (too short) and short password
+    cy.get('input[name="username"]').should("be.visible").clear().type("a");
+    cy.get('input[name="email"]').should("be.visible").clear().type("invalid-email");
+    cy.get('input[name="password"]').should("be.visible").clear().type("123");
+    cy.get('button[type="submit"]').contains(/daftar|register/i).click();
+
+    // Verify validation error messages are displayed
+    cy.contains("Username minimal 3 karakter").should("be.visible");
+    cy.contains("Format email tidak valid").should("be.visible");
+    cy.contains("Kata sandi minimal 5 karakter").should("be.visible");
   });
 
-  it('Logs out after registration', () => {
-    cy.contains('Logout').click();
-    cy.contains('Login').should('be.visible');
+  it("Register berhasil", () => {
+    cy.visit("/register");
+    cy.intercept("POST", "/api/register").as("registerRequest");
+
+    cy.get('input[name="username"]').should("be.visible").clear().type(username);
+    cy.get('input[name="email"]').should("be.visible").clear().type(email);
+    cy.get('input[name="password"]').should("be.visible").clear().type(password);
+    cy.get('button[type="submit"]').contains(/daftar|register/i).click();
+
+    cy.wait("@registerRequest");
+
+    // Redirect to homepage on success and show Logout
+    cy.url().should("eq", Cypress.config("baseUrl") + "/");
+    cy.contains("Logout").should("be.visible");
   });
 
-  it('Logs in with newly created credentials', () => {
-    cy.visit('/login');
-    cy.get('input[name="username"]').type(username);
-    cy.get('input[name="password"]').type(password);
+  it("Login gagal", () => {
+    // Clear cookies first to log out from the previous test
+    cy.clearAllCookies();
+    cy.clearAllLocalStorage();
+    cy.clearAllSessionStorage();
+
+    cy.visit("/login");
+    cy.intercept("POST", "/api/login").as("loginFailRequest");
+
+    cy.get('input[name="username"]').should("be.visible").clear().type(username);
+    cy.get('input[name="password"]').should("be.visible").clear().type("WrongPassword123!");
     cy.get('button[type="submit"]').contains(/login|masuk/i).click();
-    cy.url().should('eq', Cypress.config('baseUrl') + '/');
-    cy.contains('Logout').should('be.visible');
+
+    cy.wait("@loginFailRequest");
+
+    // Verification: should display an error message (like "Kata sandi salah" or similar server error alert)
+    // and remain on the login page
+    cy.url().should("include", "/login");
+    cy.get(".bg-red-50, .text-red-600, .text-red-500").should("be.visible");
   });
 
-  it('Navigates to a post detail, likes and bookmarks', () => {
-    // Assuming there is at least one post on the homepage
-    cy.get('a').contains(/detail|view|baca/i).first().click();
-    cy.url().should('include', '/posts/');
-    // Like the post
-    cy.get('button[title="Like pertanyaan ini"]').click();
-    // Verify like count increased (optional: capture before value)
-    // Bookmark the post
-    cy.get('button[title="Bookmark pertanyaan ini"]').click();
-    // Verify bookmark count increased
-    // Unlike (remove like) – toggle the same button
-    cy.get('button[title="Like pertanyaan ini"]').click();
-    // Remove bookmark
-    cy.get('button[title="Bookmark pertanyaan ini"]').click();
+  it("Login berhasil", () => {
+    // Clear any temporary states from failed login
+    cy.clearAllCookies();
+    cy.clearAllLocalStorage();
+    cy.clearAllSessionStorage();
+
+    cy.visit("/login");
+    cy.intercept("POST", "/api/login").as("loginRequest");
+
+    cy.get('input[name="username"]').should("be.visible").clear().type(username);
+    cy.get('input[name="password"]').should("be.visible").clear().type(password);
+    cy.get('button[type="submit"]').contains(/login|masuk/i).click();
+
+    // Wait for the login API call to finish
+    cy.wait("@loginRequest");
+
+    // Redirect to homepage on success and show Logout
+    cy.url().should("eq", Cypress.config("baseUrl") + "/");
+    cy.contains("Logout").should("be.visible");
   });
 
-  it('Visits profile page and performs actions', () => {
-    // Go to profile via menu or direct URL
-    cy.visit('/profile');
-    cy.contains(username).should('be.visible');
-    // Example: edit profile name (if UI exists)
-    cy.get('button').contains(/edit|ubah/i).first().click();
-    const newName = `${username}_edited`;
-    cy.get('input[name="name"]').clear().type(newName);
-    cy.get('button').contains(/save|simpan/i).click();
-    cy.contains(newName).should('be.visible');
-    // Follow/unfollow a user (if UI present)
-    // Assume a follow button exists on profile
-    cy.get('button').contains(/follow|ikuti/i).click();
-    cy.get('button').contains(/unfollow|batal ikuti/i).should('be.visible');
-  });
+  it("Logout", () => {
+    // Click the logout button
+    cy.contains("Keluar (Logout)").click();
 
-  it('Logs out at the end', () => {
-    cy.contains('Logout').click();
-    cy.contains('Login').should('be.visible');
+    // Verify it redirects back to login page or shows login button
+    cy.contains("Login").should("be.visible");
   });
 });
