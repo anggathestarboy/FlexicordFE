@@ -13,6 +13,8 @@ export async function GET(
 
 
     
+
+    
     const apiUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/points-logs/${username}`;
 
     try {
