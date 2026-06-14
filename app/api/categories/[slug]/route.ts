@@ -16,6 +16,8 @@ function getSlugFromUrl(request: NextRequest): string | undefined {
 // ===================================
 // UPDATE CATEGORY
 // ===================================
+
+
 export async function PUT(request: NextRequest) {
   try {
     const token = request.cookies.get("token")?.value;
