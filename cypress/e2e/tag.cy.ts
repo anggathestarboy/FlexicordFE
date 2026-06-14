@@ -76,6 +76,10 @@ describe("Tag E2E Tests", () => {
     
     cy.get('input[name="username"]').should("be.visible").should("not.be.disabled").type("anggaraa");
     cy.get('input[name="password"]').should("be.visible").should("not.be.disabled").type("aksata");
+    
+    // Overwrite me request to succeed with admin details for post-login redirection
+    cy.intercept("GET", "/api/me", { user: mockAdminUser }).as("getAdminMe");
+    
     cy.get('button[type="submit"]').contains(/login|masuk/i).click();
     cy.url().should("eq", Cypress.config("baseUrl") + "/");
   };

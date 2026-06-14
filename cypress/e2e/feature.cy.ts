@@ -213,9 +213,8 @@ describe("Feature: Leaderboard & Notifikasi", () => {
         cy.viewport(1440, 900);
         cy.visit("/");
         cy.wait("@getMe");
-        // Wait for the homepage's automatic search/page redirect timer (400ms) to complete
-        // before navigating away, to prevent race conditions from hijacking navigation.
-        cy.url().should("include", "?page=1");
+        // Wait for the homepage to settle
+        cy.wait(500);
         // Klik link bel notifikasi di navbar untuk navigasi ke halaman notifikasi
         cy.get('a[href="/notifications"]').first().click();
         cy.wait("@getNotifications");

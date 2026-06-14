@@ -6,7 +6,7 @@ describe("Post E2E Tests", () => {
     return false;
   });
 
-  const username = `u${Date.now().toString().slice(-11)}`;
+  const username = `up${Math.floor(10000000 + Math.random() * 90000000)}`;
   const email = `${username}@example.com`;
   const password = "TestPassword123!";
 
@@ -316,12 +316,11 @@ describe("Post E2E Tests", () => {
     cy.clearAllLocalStorage();
     cy.clearAllSessionStorage();
     cy.visit("/login");
+    cy.wait("@getGuestMe");
     
     cy.get('input[name="username"]').should("be.visible").should("not.be.disabled").type("anggaraa");
     cy.get('input[name="password"]').should("be.visible").should("not.be.disabled").type("aksata");
-    cy.get('button[type="submit"]').contains(/login|masuk/i).click();
-    cy.url().should("eq", Cypress.config("baseUrl") + "/");
-
+    
     // Real login as admin (gets real token cookie for middleware)
     // Now intercept /api/me to return the admin user details
     cy.intercept("GET", "/api/me", {
@@ -333,6 +332,9 @@ describe("Post E2E Tests", () => {
         primary_role: { name: "admin" },
       },
     }).as("getAdminMe");
+
+    cy.get('button[type="submit"]').contains(/login|masuk/i).click();
+    cy.url().should("eq", Cypress.config("baseUrl") + "/");
 
     cy.visit(`/posts/${mockPost.id}`);
     cy.wait(["@getAdminMe", "@getOtherPostDetail"]);
@@ -360,9 +362,7 @@ describe("Post E2E Tests", () => {
 
     cy.get('input[name="username"]').should("be.visible").should("not.be.disabled").type("reifan");
     cy.get('input[name="password"]').should("be.visible").should("not.be.disabled").type("aksata");
-    cy.get('button[type="submit"]').contains(/login|masuk/i).click();
-    cy.url().should("eq", Cypress.config("baseUrl") + "/");
-
+    
     // Real login as moderator (gets real token cookie for middleware)
     // Now intercept /api/me to return the moderator user details
     cy.intercept("GET", "/api/me", {
@@ -374,6 +374,9 @@ describe("Post E2E Tests", () => {
         primary_role: { name: "moderator" },
       },
     }).as("getModMe");
+
+    cy.get('button[type="submit"]').contains(/login|masuk/i).click();
+    cy.url().should("eq", Cypress.config("baseUrl") + "/");
 
     cy.visit(`/posts/${mockPost.id}`);
     cy.wait(["@getModMe", "@getOtherPostDetail"]);

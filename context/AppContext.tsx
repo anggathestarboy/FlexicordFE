@@ -6,9 +6,9 @@ import { MOCK_QUESTIONS } from '@/lib/data';
 
 interface AppContextType {
   questions: Question[];
-  currentUser: User | null;
+  currentUser: User | null | undefined;
   setQuestions: React.Dispatch<React.SetStateAction<Question[]>>;
-  setCurrentUser: React.Dispatch<React.SetStateAction<User | null>>;
+  setCurrentUser: React.Dispatch<React.SetStateAction<User | null | undefined>>;
   handleQuestionVote: (id: string, dir: 'up' | 'down') => void;
   handleAnswerVote: (questionId: string, answerId: string, dir: 'up' | 'down') => void;
   handleAddAnswer: (questionId: string, body: string) => void;
@@ -32,33 +32,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
 
-  const [questions, setQuestions] = useState<Question[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('devoverflow-questions');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved questions', e);
-        }
-      }
-    }
-    return MOCK_QUESTIONS;
-  });
-
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('devoverflow-user');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved user', e);
-        }
-      }
-    }
-    return null;
-  });
+  const [questions, setQuestions] = useState<Question[]>(MOCK_QUESTIONS);
+  const [currentUser, setCurrentUser] = useState<User | null | undefined>(undefined);
 
   const checkUserAuth = async () => {
     try {
@@ -80,6 +55,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedUser = localStorage.getItem('devoverflow-user');
+      if (savedUser) {
+        try {
+          setCurrentUser(JSON.parse(savedUser));
+        } catch (e) {
+          console.error('Failed to parse saved user', e);
+        }
+      }
+      const savedQuestions = localStorage.getItem('devoverflow-questions');
+      if (savedQuestions) {
+        try {
+          setQuestions(JSON.parse(savedQuestions));
+        } catch (e) {
+          console.error('Failed to parse saved questions', e);
+        }
+      }
+    }
     checkUserAuth();
   }, []);
 
