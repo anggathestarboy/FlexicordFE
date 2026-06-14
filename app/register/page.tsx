@@ -175,7 +175,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form onSubmit={formik.handleSubmit} className="space-y-4">
+          <form onSubmit={formik.handleSubmit} className="space-y-4" noValidate>
 
             {/* Username */}
             <div className="space-y-1.5">

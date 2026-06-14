@@ -233,7 +233,7 @@ export default function EditProfilePage() {
         {/* Decorative Header Bar */}
         <div className="h-3 bg-gradient-to-r from-brand-blue to-sky-500" />
 
-        <form onSubmit={formik.handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={formik.handleSubmit} className="p-6 space-y-6" noValidate>
           <div className="border-b border-zinc-150 dark:border-zinc-800 pb-4">
             <h1 className="text-lg font-bold text-zinc-900 dark:text-white">
               Edit Profil Anda

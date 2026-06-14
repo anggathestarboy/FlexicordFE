@@ -356,31 +356,9 @@ describe("Post E2E Tests", () => {
     cy.clearAllLocalStorage();
     cy.clearAllSessionStorage();
     cy.visit("/login");
+    cy.wait("@getGuestMe");
 
-   cy.visit("/login");
-
-// cek request guest benar-benar terpanggil
-cy.wait("@getGuestMe");
-
-cy.get('input[name="username"]')
-  .should("be.visible")
-  .should("not.be.disabled")
-  .type("reifan")
-  .should("have.value", "reifan");
-
-cy.wait(2000);
-
-cy.get('input[name="username"]')
-  .should("have.value", "reifan");
-
-cy.get('input[name="password"]')
-  .should("be.visible")
-  .should("not.be.disabled")
-  .type("aksata");
-
-cy.get('button[type="submit"]')
-  .contains(/login|masuk/i)
-  .click();
+    cy.get('input[name="username"]').should("be.visible").should("not.be.disabled").type("reifan");
     cy.get('input[name="password"]').should("be.visible").should("not.be.disabled").type("aksata");
     cy.get('button[type="submit"]').contains(/login|masuk/i).click();
     cy.url().should("eq", Cypress.config("baseUrl") + "/");

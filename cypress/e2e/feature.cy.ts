@@ -121,6 +121,7 @@ describe("Feature: Leaderboard & Notifikasi", () => {
   // ─── Setup: intercept semua request ─────────────────────────────────────────
 
   beforeEach(() => {
+    cy.setCookie("token", "mock-token-123");
     cy.intercept(
       "GET",
       "https://pegaduanmasyarakat.alwaysdata.net/api/leaderboard",
@@ -207,86 +208,94 @@ describe("Feature: Leaderboard & Notifikasi", () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   describe("Notifikasi", () => {
-    it("Menampilkan halaman notifikasi dengan header yang benar", () => {
-      cy.visit("/notifications");
+    describe("Dengan Login", () => {
+      beforeEach(() => {
+        cy.viewport(1440, 900);
+        cy.visit("/");
+        cy.wait("@getMe");
+        // Wait for the homepage's automatic search/page redirect timer (400ms) to complete
+        // before navigating away, to prevent race conditions from hijacking navigation.
+        cy.url().should("include", "?page=1");
+        // Klik link bel notifikasi di navbar untuk navigasi ke halaman notifikasi
+        cy.get('a[href="/notifications"]').first().click();
+        cy.wait("@getNotifications");
+      });
 
-      cy.contains("Notifikasi").should("be.visible");
-      cy.contains("Lihat aktivitas terbaru mengenai postingan dan interaksi Anda.").should("be.visible");
-    });
+      it("Menampilkan halaman notifikasi dengan header yang benar", () => {
+        cy.contains("Notifikasi").should("be.visible");
+        cy.contains("Lihat aktivitas terbaru mengenai postingan dan interaksi Anda.").should("be.visible");
+      });
 
-    it("Menampilkan daftar notifikasi (like, follow, bookmark)", () => {
-      cy.visit("/notifications");
+      it("Menampilkan daftar notifikasi (like, follow, bookmark)", () => {
+        // Like
+        cy.contains("suka_liker").should("be.visible");
+        cy.contains("menyukai postingan Anda.").should("be.visible");
 
-      // Like
-      cy.contains("suka_liker").should("be.visible");
-      cy.contains("menyukai postingan Anda.").should("be.visible");
+        // Follow
+        cy.contains("follower_user").should("be.visible");
+        cy.contains("mulai mengikuti Anda.").should("be.visible");
 
-      // Follow
-      cy.contains("follower_user").should("be.visible");
-      cy.contains("mulai mengikuti Anda.").should("be.visible");
+        // Bookmark
+        cy.contains("menyimpan postingan Anda ke bookmark.").should("be.visible");
+      });
 
-      // Bookmark
-      cy.contains("menyimpan postingan Anda ke bookmark.").should("be.visible");
-    });
+      it("Menampilkan total jumlah notifikasi di header", () => {
+        // total = 3, ada badge angka di heading
+        cy.get("h1").contains("Notifikasi").should("be.visible");
+        cy.contains("3").should("be.visible");
+      });
 
-    it("Menampilkan total jumlah notifikasi di header", () => {
-      cy.visit("/notifications");
+      it("Menampilkan indikator unread (titik biru) pada notifikasi yang belum dibaca", () => {
+        // span dot unread
+        cy.get("span.rounded-full.bg-brand-blue").should("exist");
+      });
 
-      // total = 3, ada badge angka di heading
-      cy.get("h1").contains("Notifikasi").should("be.visible");
-      cy.contains("3").should("be.visible");
-    });
+      it("Menampilkan tombol Tandai Semua Terbaca saat ada notifikasi unread", () => {
+        cy.contains("Tandai Semua Terbaca").should("be.visible");
+      });
 
-    it("Menampilkan indikator unread (titik biru) pada notifikasi yang belum dibaca", () => {
-      cy.visit("/notifications");
-
-      // span dot unread
-      cy.get("span.rounded-full.bg-brand-blue").should("exist");
-    });
-
-    it("Menampilkan tombol Tandai Semua Terbaca saat ada notifikasi unread", () => {
-      cy.visit("/notifications");
-
-      cy.contains("Tandai Semua Terbaca").should("be.visible");
-    });
-
-    it("Menampilkan empty state saat tidak ada notifikasi", () => {
-      cy.intercept("GET", "/api/notifications*", {
-        statusCode: 200,
-        body: {
-          success: true,
-          status: "ok",
-          data: {
-            current_page: 1,
-            data: [],
-            from: null,
-            last_page: 1,
-            last_page_url: null,
-            links: [],
-            next_page_url: null,
-            path: "/api/notifications",
-            per_page: 15,
-            prev_page_url: null,
-            to: null,
-            total: 0,
-            first_page_url: null,
+      it("Menampilkan empty state saat tidak ada notifikasi", () => {
+        cy.intercept("GET", "/api/notifications*", {
+          statusCode: 200,
+          body: {
+            success: true,
+            status: "ok",
+            data: {
+              current_page: 1,
+              data: [],
+              from: null,
+              last_page: 1,
+              last_page_url: null,
+              links: [],
+              next_page_url: null,
+              path: "/api/notifications",
+              per_page: 15,
+              prev_page_url: null,
+              to: null,
+              total: 0,
+              first_page_url: null,
+            },
           },
-        },
-      }).as("getEmptyNotifications");
+        }).as("getEmptyNotifications");
 
-      cy.visit("/notifications");
+        cy.visit("/notifications");
+        cy.wait("@getEmptyNotifications");
 
-      cy.contains("Tidak ada notifikasi baru").should("be.visible");
-      cy.contains("Anda belum menerima pemberitahuan apa pun saat ini.").should("be.visible");
+        cy.contains("Tidak ada notifikasi baru").should("be.visible");
+        cy.contains("Anda belum menerima pemberitahuan apa pun saat ini.").should("be.visible");
+      });
     });
 
-    it("Menampilkan pesan login jika user belum login", () => {
-      cy.intercept("GET", "/api/me", { statusCode: 401, body: {} }).as("getMeUnauth");
+    describe("Tanpa Login", () => {
+      it("Menampilkan pesan login jika user belum login", () => {
+        cy.clearCookie("token");
+        cy.intercept("GET", "/api/me", { statusCode: 401, body: {} }).as("getMeUnauth");
 
-      cy.visit("/notifications");
+        cy.visit("/notifications");
 
-      cy.contains("Silakan Login Terlebih Dahulu").should("be.visible");
-      cy.contains("Masuk ke Akun").should("be.visible");
+        cy.contains("Silakan Login Terlebih Dahulu").should("be.visible");
+        cy.contains("Masuk ke Akun").should("be.visible");
+      });
     });
   });
 });

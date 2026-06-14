@@ -124,6 +124,7 @@ export default function RightSidebar({}: RightSidebarProps) {
     staleTime: 60 * 1000,      
     gcTime: 2 * 60 * 1000,     
     refetchOnWindowFocus: false,
+    retry: false,
   });
 
   const {
@@ -197,7 +198,7 @@ export default function RightSidebar({}: RightSidebarProps) {
 
                   {/* points */}
                   <span className="text-[11px] font-bold text-brand-blue tabular-nums shrink-0">
-                    {user.reputation_points.toLocaleString()} pts
+                    {user.reputation_points.toLocaleString("en-US")} pts
                   </span>
                 </Link>
               ))}

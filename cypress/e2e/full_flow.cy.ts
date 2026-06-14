@@ -6,17 +6,22 @@ describe("Full user flow", () => {
   });
 
   // Use a fixed unique username for the duration of this test suite run
-  const uniqueId = Date.now().toString().slice(-9);
+  const uniqueId = Date.now().toString().slice(-8);
   const username = `halo${uniqueId}`;
   const email = `${username}@example.com`;
   const password = "TestPassword1234!";
 
+  beforeEach(() => {
+    // Set viewport to desktop so the Sidebar containing the logout button is visible
+    cy.viewport(1440, 900);
+  });
+
   it("Register gagal", () => {
     cy.visit("/register");
     // Invalid username (too short) and short password
-    cy.get('input[name="username"]').should("be.visible").clear().type("a");
-    cy.get('input[name="email"]').should("be.visible").clear().type("invalid-email");
-    cy.get('input[name="password"]').should("be.visible").clear().type("123");
+    cy.get('input[name="username"]').should("be.visible").should("not.be.disabled").clear().type("a");
+    cy.get('input[name="email"]').should("be.visible").should("not.be.disabled").clear().type("abc@.com");
+    cy.get('input[name="password"]').should("be.visible").should("not.be.disabled").clear().type("123");
     cy.get('button[type="submit"]').contains(/daftar|register/i).click();
 
     // Verify validation error messages are displayed
@@ -29,16 +34,16 @@ describe("Full user flow", () => {
     cy.visit("/register");
     cy.intercept("POST", "/api/register").as("registerRequest");
 
-    cy.get('input[name="username"]').should("be.visible").clear().type(username);
-    cy.get('input[name="email"]').should("be.visible").clear().type(email);
-    cy.get('input[name="password"]').should("be.visible").clear().type(password);
+    cy.get('input[name="username"]').should("be.visible").should("not.be.disabled").clear().type(username);
+    cy.get('input[name="email"]').should("be.visible").should("not.be.disabled").clear().type(email);
+    cy.get('input[name="password"]').should("be.visible").should("not.be.disabled").clear().type(password);
     cy.get('button[type="submit"]').contains(/daftar|register/i).click();
 
     cy.wait("@registerRequest");
 
     // Redirect to homepage on success and show Logout
     cy.url().should("eq", Cypress.config("baseUrl") + "/");
-    cy.contains("Logout").should("be.visible");
+    cy.contains("Keluar (Logout)").should("be.visible");
   });
 
   it("Login gagal", () => {
@@ -50,8 +55,8 @@ describe("Full user flow", () => {
     cy.visit("/login");
     cy.intercept("POST", "/api/login").as("loginFailRequest");
 
-    cy.get('input[name="username"]').should("be.visible").clear().type(username);
-    cy.get('input[name="password"]').should("be.visible").clear().type("WrongPassword123!");
+    cy.get('input[name="username"]').should("be.visible").should("not.be.disabled").clear().type(username);
+    cy.get('input[name="password"]').should("be.visible").should("not.be.disabled").clear().type("WrongPassword123!");
     cy.get('button[type="submit"]').contains(/login|masuk/i).click();
 
     cy.wait("@loginFailRequest");
@@ -71,8 +76,8 @@ describe("Full user flow", () => {
     cy.visit("/login");
     cy.intercept("POST", "/api/login").as("loginRequest");
 
-    cy.get('input[name="username"]').should("be.visible").clear().type(username);
-    cy.get('input[name="password"]').should("be.visible").clear().type(password);
+    cy.get('input[name="username"]').should("be.visible").should("not.be.disabled").clear().type(username);
+    cy.get('input[name="password"]').should("be.visible").should("not.be.disabled").clear().type(password);
     cy.get('button[type="submit"]').contains(/login|masuk/i).click();
 
     // Wait for the login API call to finish
@@ -80,14 +85,20 @@ describe("Full user flow", () => {
 
     // Redirect to homepage on success and show Logout
     cy.url().should("eq", Cypress.config("baseUrl") + "/");
-    cy.contains("Logout").should("be.visible");
+    cy.contains("Keluar (Logout)").should("be.visible");
   });
 
   it("Logout", () => {
+    cy.visit("/login");
+    cy.get('input[name="username"]').should("be.visible").should("not.be.disabled").clear().type(username);
+    cy.get('input[name="password"]').should("be.visible").should("not.be.disabled").clear().type(password);
+    cy.get('button[type="submit"]').contains(/login|masuk/i).click();
+    cy.url().should("eq", Cypress.config("baseUrl") + "/");
+
     // Click the logout button
-    cy.contains("Keluar (Logout)").click();
+    cy.contains("Keluar (Logout)").should("be.visible").click();
 
     // Verify it redirects back to login page or shows login button
-    cy.contains("Login").should("be.visible");
+    cy.contains("Masuk").should("be.visible");
   });
 });
