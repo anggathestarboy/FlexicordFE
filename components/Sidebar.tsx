@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, Tag, User, HelpCircle, LogIn, UserPlus, LogOut, List, Tags, Flag, ScrollText } from 'lucide-react';
+import { Globe, Tag, User, HelpCircle, LogIn, UserPlus, LogOut, List, Tags, Flag, ScrollText, Award } from 'lucide-react';
 import { ViewType, User as UserType } from '@/lib/types';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -77,6 +77,7 @@ export default function Sidebar({
   const isModerator =
     apiUser?.primary_role?.name === 'moderator' ||
     apiUser?.primary_role?.name === 'admin';
+  const isAdmin = apiUser?.primary_role?.name === 'admin';
 
   const logoutMutation = useMutation({
     mutationFn: logoutUser,
@@ -85,7 +86,7 @@ export default function Sidebar({
     },
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ['me'] });
-      window.location.href = "/"
+      window.location.href = "/";
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: ['me'] });
@@ -146,7 +147,6 @@ export default function Sidebar({
                 <Globe className="h-4 w-4" />
                 <span>Pertanyaan</span>
               </div>
-            
             </Link>
 
             <Link
@@ -214,6 +214,7 @@ export default function Sidebar({
               {modNavItem('/moderation/tags', <Tags className="h-4 w-4" />, 'List Tags')}
               {modNavItem('/moderation/reports', <Flag className="h-4 w-4" />, 'Users Report')}
               {modNavItem('/moderation/logs', <ScrollText className="h-4 w-4" />, 'Moderation Logs')}
+              {isAdmin && modNavItem('/moderation/badges', <Award className="h-4 w-4" />, 'Badges')}
             </nav>
           </div>
         )}
@@ -265,7 +266,6 @@ export default function Sidebar({
         {/* Footer */}
         <div className="px-3 text-[10px] text-zinc-400 dark:text-zinc-500 space-y-1">
           <p>© 2026 Flexicord</p>
-         
         </div>
 
       </div>

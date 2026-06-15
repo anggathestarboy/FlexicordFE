@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Trophy, Pencil, Trash2, Plus, X, Upload, Loader2, Sparkles } from "lucide-react";
-import { Badge } from "../api/badges/BadgesType";
+import { Badge } from "../../api/badges/BadgesType";
 import { useApp } from "@/context/AppContext";
 import axios from "axios";
 
