@@ -6,9 +6,12 @@ import Providers from "./providers"; // ← tambah ini
 import PWARegister from "@/components/PWARegister";
 
 export const metadata: Metadata = {
-  title: "Flexicord - Developer Q&A",
+  title: "Flexicord",
   description: "A community-driven Q&A platform for developers.",
   manifest: "/manifest.json",
+    verification: {
+    google: "nNKuI2XYFZPj2T72QHx-xbbgiKJE4cqFEnhX5D3LIEk",
+  },
 };
 
 export default function RootLayout({
